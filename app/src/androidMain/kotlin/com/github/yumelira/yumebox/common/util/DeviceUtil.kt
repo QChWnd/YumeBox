@@ -31,6 +31,10 @@ object DeviceUtil {
         }
     }
 
+    fun is64BitDevice(): Boolean {
+        return Build.SUPPORTED_ABIS.any { abi -> abi.contains("arm64-v8a") || abi.contains("x86_64") }
+    }
+
     fun getPreferredAbi(): String {
         return when (Build.SUPPORTED_ABIS.firstOrNull()) {
             "arm64-v8a" -> "arm64-v8a"
