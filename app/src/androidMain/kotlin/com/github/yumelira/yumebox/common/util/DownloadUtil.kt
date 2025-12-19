@@ -31,6 +31,8 @@ import okhttp3.Request
 import okio.buffer
 import okio.sink
 import com.github.yumelira.yumebox.App
+import com.github.yumelira.yumebox.BuildConfig
+import com.github.yumelira.yumebox.core.bridge.Bridge
 import timber.log.Timber
 import java.io.File
 import java.net.URLDecoder
@@ -55,7 +57,15 @@ data class SubscriptionInfo(
 )
 
 object DownloadUtil {
-    private const val USER_AGENT = "Clash.Meta"
+    private val userAgent by lazy {
+        val versionName = BuildConfig.VERSION_NAME
+        try {
+            val coreVersion = Bridge.nativeCoreVersion()
+            "YumeBox/$versionName clash.meta/$coreVersion mihomo/$coreVersion"
+        } catch (e: Exception) {
+            "YumeBox/$versionName clash.meta/Unknown mihomo/Unknown"
+        }
+    }
     private const val UPDATE_INTERVAL_MS = 500L
 
     private fun parseFilenameFromContentDisposition(headers: Headers): String? {
@@ -185,7 +195,7 @@ object DownloadUtil {
 
             val request = Request.Builder()
                 .url(url)
-                .header("User-Agent", USER_AGENT)
+                .header("User-Agent", userAgent)
                 .build()
 
             val response = client.newCall(request).execute()

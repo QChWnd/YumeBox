@@ -16,6 +16,7 @@ import (
 	"cfa/native/app"
 
 	clashHttp "github.com/metacubex/mihomo/component/http"
+	C "github.com/metacubex/mihomo/constant"
 )
 
 type Status struct {
@@ -42,7 +43,17 @@ func GetCustomUserAgent() string {
 	if customUserAgent != "" {
 		return customUserAgent
 	}
-	return "clash.meta/" + app.VersionName()
+
+	version := app.VersionName()
+	return fmt.Sprintf(
+		"YumeBox/%s clash.meta/%s mihomo/%s %s %s with %s",
+		version,
+		C.Version,
+		C.Version,
+		runtime.GOOS,
+		runtime.GOARCH,
+		runtime.Version(),
+	)
 }
 
 func openUrl(ctx context.Context, url string) (io.ReadCloser, error) {
@@ -51,7 +62,6 @@ func openUrl(ctx context.Context, url string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-
 
 	return response.Body, nil
 }
