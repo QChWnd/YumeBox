@@ -45,8 +45,6 @@ plugins {
     id("org.jetbrains.compose")
     id("com.google.devtools.ksp")
     id("com.mikepenz.aboutlibraries.plugin")
-    id("com.google.gms.google-services")
-    id("com.google.firebase.crashlytics")
     id("dev.oom-wg.purejoy.mlang")
 }
 
@@ -96,9 +94,6 @@ kotlin {
             implementation("com.caoccao.javet:javet-node-android:5.0.2")
             implementation("com.highcapable.pangutext:pangutext-android:1.0.4")
             implementation("org.apache.commons:commons-compress:1.26.1")
-            implementation(project.dependencies.platform("com.google.firebase:firebase-bom:34.6.0"))
-            implementation("com.google.firebase:firebase-crashlytics-ndk")
-            implementation("com.google.firebase:firebase-analytics")
             implementation("com.google.mlkit:barcode-scanning:17.3.0")
             implementation("androidx.camera:camera-camera2:1.4.2")
             implementation("androidx.camera:camera-lifecycle:1.4.2")
