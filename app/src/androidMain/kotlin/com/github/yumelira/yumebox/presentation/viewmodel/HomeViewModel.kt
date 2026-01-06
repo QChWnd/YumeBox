@@ -24,28 +24,26 @@ import android.app.Application
 import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.channels.BufferOverflow
+import com.github.yumelira.yumebox.clash.manager.ClashManager
 import com.github.yumelira.yumebox.core.model.LogMessage
 import com.github.yumelira.yumebox.data.model.Profile
-import com.github.yumelira.yumebox.data.repository.NetworkInfoService
 import com.github.yumelira.yumebox.data.repository.IpMonitoringState
+import com.github.yumelira.yumebox.data.repository.NetworkInfoService
 import com.github.yumelira.yumebox.data.repository.ProxyChainResolver
 import com.github.yumelira.yumebox.data.store.AppSettingsStorage
-import com.github.yumelira.yumebox.domain.facade.ProxyFacade
 import com.github.yumelira.yumebox.domain.facade.ProfilesRepository
-import com.github.yumelira.yumebox.clash.loader.ConfigAutoLoader
-import com.github.yumelira.yumebox.core.model.Proxy
-import dev.oom_wg.purejoy.mlang.MLang
-import kotlinx.coroutines.delay
+import com.github.yumelira.yumebox.domain.facade.ProxyFacade
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 
 class HomeViewModel(
     application: Application,
     private val proxyFacade: ProxyFacade,
     private val profilesRepository: ProfilesRepository,
-    private val appSettingsStorage: AppSettingsStorage,
-    private val configAutoLoadService: ConfigAutoLoader,
+    appSettingsStorage: AppSettingsStorage,
+    private val clashManager: ClashManager,
     private val networkInfoService: NetworkInfoService,
     private val proxyChainResolver: ProxyChainResolver
 ) : AndroidViewModel(application) {
@@ -54,21 +52,14 @@ class HomeViewModel(
     val recommendedProfile: StateFlow<Profile?> = profilesRepository.recommendedProfile
     val hasEnabledProfile: Flow<Boolean> = profiles.map { it.any { profile -> profile.enabled } }
 
-    val proxyState = proxyFacade.proxyState
     val isRunning = proxyFacade.isRunning
-    val runningMode = proxyFacade.runningMode
     val currentProfile = proxyFacade.currentProfile
     val trafficNow = proxyFacade.trafficNow
-    val trafficTotal = proxyFacade.trafficTotal
     val proxyGroups = proxyFacade.proxyGroups
     val tunnelState = proxyFacade.tunnelState
 
     val oneWord: StateFlow<String> = appSettingsStorage.oneWord.state
     val oneWordAuthor: StateFlow<String> = appSettingsStorage.oneWordAuthor.state
-    val oneWordAndAuthor: StateFlow<String> =
-        combine(appSettingsStorage.oneWord.state, appSettingsStorage.oneWordAuthor.state) { word, author ->
-            "\"$word\" — $author"
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -80,16 +71,14 @@ class HomeViewModel(
     val isToggling: StateFlow<Boolean> = _isToggling.asStateFlow()
 
     private val _vpnPrepareIntent = MutableSharedFlow<Intent>(
-        replay = 0,
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
+        replay = 0, extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     val vpnPrepareIntent = _vpnPrepareIntent.asSharedFlow()
 
     private val _speedHistory = MutableStateFlow<List<Long>>(emptyList())
     val speedHistory: StateFlow<List<Long>> = _speedHistory.asStateFlow()
 
-    private val mainProxyNode: StateFlow<Proxy?> =
+    private val mainProxyNode: StateFlow<com.github.yumelira.yumebox.core.model.Proxy?> =
         combine(isRunning, proxyGroups) { running, groups ->
             if (!running || groups.isEmpty()) return@combine null
             val mainGroup = groups.find { it.name.equals("Proxy", ignoreCase = true) } ?: groups.firstOrNull()
@@ -99,9 +88,9 @@ class HomeViewModel(
                 null
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-    
-    val selectedServerName: StateFlow<String?> = mainProxyNode.map { it?.name }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val selectedServerName: StateFlow<String?> =
+        mainProxyNode.map { it?.name }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val selectedServerPing: StateFlow<Int?> = mainProxyNode.map { node ->
         node?.let {
@@ -109,29 +98,21 @@ class HomeViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val ipMonitoringState: StateFlow<IpMonitoringState> =
-        isRunning.flatMapLatest { running ->
-            if (running) {
-                networkInfoService.startIpMonitoring(isRunning)
-            } else {
-                flowOf(IpMonitoringState.Loading)
-            }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), IpMonitoringState.Loading)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val ipMonitoringState: StateFlow<IpMonitoringState> = isRunning.flatMapLatest { running ->
+        if (running) {
+            networkInfoService.startIpMonitoring(isRunning)
+        } else {
+            flowOf(IpMonitoringState.Loading)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), IpMonitoringState.Loading)
 
     private val _recentLogs = MutableStateFlow<List<LogMessage>>(emptyList())
-    val recentLogs: StateFlow<List<LogMessage>> = _recentLogs.asStateFlow()
 
     init {
         syncDisplayState()
-        lazyInitialize()
-    }
-    
-    private fun lazyInitialize() {
-        viewModelScope.launch {
-            delay(500)
-            subscribeToLogs()
-            startSpeedSampling()
-        }
+        subscribeToLogs()
+        startSpeedSampling()
     }
 
     private fun syncDisplayState() {
@@ -150,14 +131,22 @@ class HomeViewModel(
     suspend fun reloadProfile(profileId: String) {
         try {
             setLoading(true)
-            val result = configAutoLoadService.reloadConfig(profileId)
+            // 从 ProfilesStore 获取配置
+            val profile = profilesRepository.profiles.value.find { it.id == profileId }
+            if (profile == null) {
+                showError("配置切换失败: 配置不存在")
+                return
+            }
+
+            // 重新加载配置
+            val result = clashManager.loadProfile(profile)
             if (result.isSuccess) {
-                showMessage(MLang.Home.Message.ConfigSwitched)
+                showMessage("配置已切换")
             } else {
-                showError(MLang.Home.Message.ConfigSwitchFailed.format(result.exceptionOrNull()?.message))
+                showError("配置切换失败: ${result.exceptionOrNull()?.message}")
             }
         } catch (e: Exception) {
-            showError(MLang.Home.Message.ConfigSwitchFailed.format(e.message))
+            showError("配置切换失败: ${e.message}")
         } finally {
             setLoading(false)
         }
@@ -165,65 +154,58 @@ class HomeViewModel(
 
     fun startProxy(profileId: String, useTunMode: Boolean? = null) {
         if (_isToggling.value) return
-        
+
         viewModelScope.launch {
             try {
                 _isToggling.value = true
                 _displayRunning.value = true
-                _uiState.update { it.copy(isStartingProxy = true, loadingProgress = MLang.Home.Message.Preparing) }
+                _uiState.update { it.copy(isStartingProxy = true, loadingProgress = "正在准备...") }
 
                 val result = proxyFacade.startProxy(profileId, useTunMode)
 
-                result.fold(
-                    onSuccess = { intent ->
-                        if (intent != null) {
-                            _uiState.update { it.copy(isStartingProxy = false, loadingProgress = null) }
-                            _vpnPrepareIntent.emit(intent)
-                            _displayRunning.value = false
-                            _isToggling.value = false
-                        } else {
-                            _uiState.update { it.copy(isStartingProxy = false, loadingProgress = null) }
-                        }
-                    },
-                    onFailure = { error ->
+                result.fold(onSuccess = { intent ->
+                    if (intent != null) {
+                        _uiState.update { it.copy(isStartingProxy = false, loadingProgress = null) }
+                        _vpnPrepareIntent.emit(intent)
                         _displayRunning.value = false
                         _isToggling.value = false
+                    } else {
                         _uiState.update { it.copy(isStartingProxy = false, loadingProgress = null) }
-                        showError(MLang.Home.Message.StartFailed.format(error.message))
                     }
-                )
+                }, onFailure = { error ->
+                    _displayRunning.value = false
+                    _isToggling.value = false
+                    _uiState.update { it.copy(isStartingProxy = false, loadingProgress = null) }
+                    showError("启动失败: ${error.message}")
+                })
             } catch (e: Exception) {
                 _displayRunning.value = false
                 _isToggling.value = false
                 _uiState.update { it.copy(isStartingProxy = false, loadingProgress = null) }
-                showError(MLang.Home.Message.StartFailed.format(e.message))
+                showError("启动失败: ${e.message}")
             }
         }
     }
 
     fun stopProxy() {
         if (_isToggling.value) return
-        
+
         viewModelScope.launch {
             try {
                 _isToggling.value = true
                 _displayRunning.value = false
                 setLoading(true)
                 proxyFacade.stopProxy()
-                showMessage(MLang.Home.Message.ProxyStopped)
+                showMessage("代理服务已停止")
             } catch (e: Exception) {
                 _displayRunning.value = true
                 _isToggling.value = false
-                showError(MLang.Home.Message.StopFailed.format(e.message))
+                showError("停止失败: ${e.message}")
             } finally {
                 setLoading(false)
             }
         }
     }
-
-    fun refreshIpInfo() = networkInfoService.triggerRefresh()
-
-    fun clearLogs() { _recentLogs.value = emptyList() }
 
     private fun subscribeToLogs() {
         viewModelScope.launch {
@@ -260,8 +242,6 @@ class HomeViewModel(
     private fun setLoading(loading: Boolean) = _uiState.update { it.copy(isLoading = loading) }
     private fun showMessage(message: String) = _uiState.update { it.copy(message = message) }
     private fun showError(error: String) = _uiState.update { it.copy(error = error) }
-    fun clearMessage() = _uiState.update { it.copy(message = null) }
-    fun clearError() = _uiState.update { it.copy(error = null) }
 
     data class HomeUiState(
         val isLoading: Boolean = false,

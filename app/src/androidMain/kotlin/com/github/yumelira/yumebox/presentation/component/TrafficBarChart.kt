@@ -26,7 +26,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,7 +60,7 @@ fun TrafficBarChart(
 ) {
     val computedMaxValue = maxDisplayValue ?: items.maxOfOrNull { it.value } ?: 1L
     val safeMaxValue = if (computedMaxValue <= 0L) 1L else computedMaxValue
-    
+
     val animatedMaxValue by animateFloatAsState(
         targetValue = safeMaxValue.toFloat(),
         animationSpec = tween(durationMillis = 400),
@@ -100,7 +102,7 @@ fun TrafficBarChart(
             displayItems.forEachIndexed { index, item ->
                 val isSelected = index == selectedIndex || item.isHighlighted
                 val isValidItem = item.label.isNotEmpty()
-                
+
                 val targetHeight = if (animatedMaxValue > 0 && item.value > 0) {
                     (item.value.toFloat() / animatedMaxValue).coerceIn(0.03f, 1f)
                 } else {

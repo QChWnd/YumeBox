@@ -37,7 +37,7 @@ class CaseEngine(backendPort: Int, frontendPort: Int, allowLan: Boolean) : Close
 
     @Volatile
     private var shouldAwait = true
-    
+
     @Volatile
     private var isRunning = false
 
@@ -97,8 +97,7 @@ class CaseEngine(backendPort: Int, frontendPort: Int, allowLan: Boolean) : Close
                 while (shouldAwait) {
                     nodeRuntime!!.await(V8AwaitMode.RunNoWait)
                 }
-            } catch (e: InterruptedException) {
-                Timber.d("CaseEngine 线程被中断")
+            } catch (_: InterruptedException) {
             } catch (e: Exception) {
                 Timber.e(e, "CaseEngine 运行出错")
             } finally {
@@ -122,7 +121,7 @@ class CaseEngine(backendPort: Int, frontendPort: Int, allowLan: Boolean) : Close
         try {
             shouldAwait = false
             nodeRuntime?.terminateExecution()
-            
+
             if (::thread.isInitialized && thread.isAlive) {
                 thread.interrupt()
                 thread.join(5000)

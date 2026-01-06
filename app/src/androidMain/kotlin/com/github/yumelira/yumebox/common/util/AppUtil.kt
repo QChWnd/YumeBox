@@ -20,10 +20,9 @@
 
 package com.github.yumelira.yumebox.common.util
 
-import java.io.File
 import com.github.yumelira.yumebox.App
 import com.github.yumelira.yumebox.substore.SubStorePaths
-import timber.log.Timber
+import java.io.File
 
 object AppUtil {
     fun initFirstOpen() {

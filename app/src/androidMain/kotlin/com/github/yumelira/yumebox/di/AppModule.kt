@@ -20,6 +20,12 @@
 
 package com.github.yumelira.yumebox.di
 
+import com.github.yumelira.yumebox.clash.manager.ClashManager
+import com.github.yumelira.yumebox.data.repository.*
+import com.github.yumelira.yumebox.data.store.*
+import com.github.yumelira.yumebox.domain.facade.ProfilesRepository
+import com.github.yumelira.yumebox.domain.facade.ProxyFacade
+import com.github.yumelira.yumebox.presentation.viewmodel.*
 import com.tencent.mmkv.MMKV
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,39 +35,12 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import com.github.yumelira.yumebox.clash.manager.ClashManager
-import com.github.yumelira.yumebox.data.store.MMKVProvider
-import com.github.yumelira.yumebox.data.store.AppSettingsStorage
-import com.github.yumelira.yumebox.data.store.FeatureStore
-import com.github.yumelira.yumebox.data.store.NetworkSettingsStorage
-import com.github.yumelira.yumebox.data.store.ProfilesStore
-import com.github.yumelira.yumebox.data.store.ProxyDisplaySettingsStore
-import com.github.yumelira.yumebox.data.store.TrafficStatisticsStore
-import com.github.yumelira.yumebox.data.repository.NetworkInfoService
-import com.github.yumelira.yumebox.data.repository.ProxyConnectionService
-import com.github.yumelira.yumebox.data.repository.ProxyChainResolver
-import com.github.yumelira.yumebox.data.repository.TrafficStatisticsCollector
-import com.github.yumelira.yumebox.domain.facade.ProxyFacade
-import com.github.yumelira.yumebox.domain.facade.ProfilesRepository
-import com.github.yumelira.yumebox.presentation.viewmodel.AppSettingsViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.ProfilesViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.FeatureViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.HomeViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.LogViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.OverrideViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.ProvidersViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.ProxyViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.SettingViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.NetworkSettingsViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.AccessControlViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.TrafficStatisticsViewModel
-import com.github.yumelira.yumebox.clash.loader.ConfigAutoLoader
 
 const val APPLICATION_SCOPE_NAME = "applicationScope"
 
 val appModule = module {
-    single<CoroutineScope>(named(APPLICATION_SCOPE_NAME)) { 
-        CoroutineScope(SupervisorJob() + Dispatchers.Default) 
+    single<CoroutineScope>(named(APPLICATION_SCOPE_NAME)) {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
 
     single { MMKVProvider() }
@@ -71,35 +50,37 @@ val appModule = module {
     single<MMKV>(named("substore")) { get<MMKVProvider>().getMMKV("substore") }
     single<MMKV>(named("proxy_display")) { get<MMKVProvider>().getMMKV("proxy_display") }
     single<MMKV>(named("traffic_statistics")) { get<MMKVProvider>().getMMKV("traffic_statistics") }
+    single<MMKV>(named("profile_links")) { get<MMKVProvider>().getMMKV("profile_links") }
 
     single { AppSettingsStorage(get<MMKV>(named("settings"))) }
     single { NetworkSettingsStorage(get(named("network_settings"))) }
+    single { ProfileLinksStorage(get(named("profile_links"))) }
     single { FeatureStore(get(named("substore"))) }
     single { ProfilesStore(get(named("profiles")), get<CoroutineScope>(named(APPLICATION_SCOPE_NAME))) }
     single { ProxyDisplaySettingsStore(get(named("proxy_display"))) }
     single { TrafficStatisticsStore(get(named("traffic_statistics"))) }
 
-    single(createdAtStart = false) { 
+    single(createdAtStart = false) {
         ClashManager(
-            androidContext(), 
+            androidContext(),
             androidApplication().filesDir.resolve("clash"),
             proxyModeProvider = { get<ProxyDisplaySettingsStore>().proxyMode.value }
-        ) 
+        )
     }
-    single { ConfigAutoLoader(get(), get()) }
 
     single { NetworkInfoService() }
     single { ProxyConnectionService(androidContext(), get(), get(), get()) }
     single { ProxyChainResolver() }
     single { TrafficStatisticsCollector(get(), get()) }
+    single { SelectionDao(androidContext()) }
 
-    single { ProxyFacade(get(), get()) }
+    single { ProxyFacade(get(), get(), get()) }
     single { ProfilesRepository(get()) }
 
     viewModel { AppSettingsViewModel(get()) }
     viewModel { HomeViewModel(androidApplication(), get(), get(), get(), get(), get(), get()) }
     viewModel { ProfilesViewModel(androidApplication(), get(), get()) }
-    viewModel { ProxyViewModel(get(), get()) }
+    viewModel { ProxyViewModel(get<ClashManager>(), get()) }
     viewModel { ProvidersViewModel(get()) }
     viewModel { LogViewModel(androidApplication()) }
     viewModel { SettingViewModel(get()) }

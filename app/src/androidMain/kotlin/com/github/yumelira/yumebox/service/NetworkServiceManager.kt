@@ -1,23 +1,3 @@
-/*
- * This file is part of YumeBox.
- *
- * YumeBox is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- * Copyright (c)  YumeLira 2025.
- *
- */
-
 package com.github.yumelira.yumebox.service
 
 import android.content.Context
@@ -26,17 +6,19 @@ import android.net.VpnService
 import android.os.Build
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import com.github.yumelira.yumebox.data.model.AccessControlMode
+import com.github.yumelira.yumebox.data.model.ProxyMode
+import com.github.yumelira.yumebox.data.model.TunStack
+import com.github.yumelira.yumebox.data.store.MMKVProvider
+import com.github.yumelira.yumebox.data.store.NetworkSettingsStorage
+import com.github.yumelira.yumebox.data.store.TrafficStatisticsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import com.github.yumelira.yumebox.data.model.ProxyMode
-import com.github.yumelira.yumebox.data.model.TunStack
-import com.github.yumelira.yumebox.data.model.AccessControlMode
-import com.github.yumelira.yumebox.data.store.NetworkSettingsStorage
-import com.github.yumelira.yumebox.data.store.MMKVProvider
 
 class NetworkServiceManager(
     private val context: Context
@@ -56,15 +38,11 @@ class NetworkServiceManager(
     private var currentServiceType: ServiceType? = null
 
     enum class ServiceState {
-        Starting,
-        Running,
-        Stopping,
-        Stopped
+        Starting, Running, Stopping, Stopped
     }
 
     enum class ServiceType {
-        VPN,
-        HTTP_PROXY
+        VPN, HTTP_PROXY
     }
 
     fun startService(proxyMode: ProxyMode) {
@@ -101,8 +79,18 @@ class NetworkServiceManager(
                     return@launch
                 }
 
+                val profileId = TrafficStatisticsStore(
+                    MMKVProvider().getMMKV("traffic_statistics")
+                ).getLastProfileId()
+
+                if (profileId == null) {
+                    _serviceState.value = ServiceState.Stopped
+                    return@launch
+                }
+
                 val intent = Intent(context, ClashVpnService::class.java).apply {
                     action = ClashVpnService.ACTION_START
+                    putExtra(ClashVpnService.EXTRA_PROFILE_ID, profileId)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
 
@@ -114,7 +102,7 @@ class NetworkServiceManager(
 
                 currentServiceType = ServiceType.VPN
                 _serviceState.value = ServiceState.Running
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _serviceState.value = ServiceState.Stopped
                 currentServiceType = null
             }
@@ -144,7 +132,7 @@ class NetworkServiceManager(
 
                 currentServiceType = ServiceType.HTTP_PROXY
                 _serviceState.value = ServiceState.Running
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _serviceState.value = ServiceState.Stopped
                 currentServiceType = null
             }
@@ -173,29 +161,21 @@ class NetworkServiceManager(
                             ServiceType.HTTP_PROXY -> ClashHttpService.ACTION_STOP
                             else -> null
                         }
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
+
                     context.stopService(intent)
+
+                    delay(1000)
                 }
 
                 currentServiceType = null
                 _serviceState.value = ServiceState.Stopped
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _serviceState.value = ServiceState.Stopped
                 currentServiceType = null
             }
         }
-    }
-
-    fun getCurrentServiceConfig(): ServiceConfig {
-        return ServiceConfig(
-            bypassPrivateNetwork = networkSettingsStorage.bypassPrivateNetwork.value,
-            dnsHijacking = networkSettingsStorage.dnsHijack.value,
-            allowBypass = networkSettingsStorage.allowBypass.value,
-            allowIpv6 = networkSettingsStorage.enableIPv6.value,
-            systemProxy = networkSettingsStorage.systemProxy.value,
-            tunStackMode = networkSettingsStorage.tunStack.value.name,
-            accessControlMode = networkSettingsStorage.accessControlMode.value
-        )
     }
 
     fun updateServiceConfig(config: ServiceConfig) {

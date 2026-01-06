@@ -30,10 +30,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.oom_wg.purejoy.mlang.MLang
 import top.yukonga.miuix.kmp.extra.SuperArrow
 import top.yukonga.miuix.kmp.extra.SuperDialog
+<<<<<<< HEAD
 import dev.oom_wg.purejoy.mlang.MLang
 import kotlinx.coroutines.delay
+=======
+>>>>>>> upstream/Yume
 
 enum class MessageType {
     SUCCESS,

@@ -1,46 +1,22 @@
-/*
- * This file is part of YumeBox.
- *
- * YumeBox is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- * Copyright (c)  YumeLira 2025.
- *
- */
-
 package com.github.yumelira.yumebox.service.notification
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.app.Service
+import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import com.github.yumelira.yumebox.MainActivity
+import com.github.yumelira.yumebox.R
+import com.github.yumelira.yumebox.clash.manager.ClashManager
+import com.github.yumelira.yumebox.common.util.formatBytes
+import com.github.yumelira.yumebox.common.util.formatSpeed
+import com.github.yumelira.yumebox.data.model.Profile
+import com.github.yumelira.yumebox.data.store.AppSettingsStorage
+import com.github.yumelira.yumebox.domain.model.TrafficData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import com.github.yumelira.yumebox.MainActivity
-import com.github.yumelira.yumebox.R
-import com.github.yumelira.yumebox.clash.manager.ClashManager
-import com.github.yumelira.yumebox.common.util.formatSpeed
-import com.github.yumelira.yumebox.common.util.formatTotal
-import com.github.yumelira.yumebox.data.store.AppSettingsStorage
-import com.github.yumelira.yumebox.data.model.Profile
-import com.github.yumelira.yumebox.domain.model.TrafficData
 
 class ServiceNotificationManager(
     private val service: Service,
@@ -52,6 +28,7 @@ class ServiceNotificationManager(
         val currentProfile: Profile?,
         val showTraffic: Boolean
     )
+
     data class Config(
         val notificationId: Int,
         val channelId: String,
@@ -131,7 +108,7 @@ class ServiceNotificationManager(
                 val profileName = currentProfile?.name ?: "未知配置"
                 if (showTraffic) {
                     val speedStr = "↓ ${formatSpeed(now.download)} ↑ ${formatSpeed(now.upload)}"
-                    val totalStr = "总计: ${formatTotal(total.download + total.upload)}"
+                    val totalStr = "总计: ${formatBytes(total.download + total.upload)}"
                     update("已连接: $profileName", "$speedStr | $totalStr", true)
                 } else {
                     update("已连接", profileName, true)

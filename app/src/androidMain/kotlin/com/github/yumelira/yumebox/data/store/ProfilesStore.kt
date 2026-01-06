@@ -20,13 +20,17 @@
 
 package com.github.yumelira.yumebox.data.store
 
+import com.github.yumelira.yumebox.data.model.Profile
 import com.tencent.mmkv.MMKV
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+<<<<<<< HEAD
 import com.github.yumelira.yumebox.data.model.Profile
+=======
+>>>>>>> upstream/Yume
 
 class ProfilesStore(
     mmkv: MMKV,
@@ -38,10 +42,12 @@ class ProfilesStore(
         decode = { str -> decodeFromString(str) },
         encode = { value -> encodeToString(value) }
     )
-    
+
     var lastUsedProfileId: String by str(default = "")
 
     val profiles: StateFlow<List<Profile>> = _profiles.state
+        .map { list -> list.sortedBy { it.order } }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5000), getAllProfiles().sortedBy { it.order })
 
     val enabledProfile: StateFlow<Profile?> = _profiles.state
         .map { list -> list.firstOrNull { it.enabled } }
@@ -74,4 +80,10 @@ class ProfilesStore(
     fun getRecommendedProfile(): Profile? = getEnabledProfile() ?: _profiles.value.firstOrNull()
 
     fun hasEnabledProfile(): Boolean = _profiles.value.any { it.enabled }
+
+    suspend fun reorderProfiles(profiles: List<Profile>) {
+        profiles.forEachIndexed { index, profile ->
+            _profiles.update({ it.id == profile.id }) { profile.copy(order = index) }
+        }
+    }
 }

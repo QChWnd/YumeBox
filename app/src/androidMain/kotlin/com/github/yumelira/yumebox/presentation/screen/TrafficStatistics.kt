@@ -24,33 +24,35 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
 import com.github.yumelira.yumebox.common.util.formatBytes
 import com.github.yumelira.yumebox.data.model.ProfileTrafficUsage
 import com.github.yumelira.yumebox.data.model.StatisticsTimeRange
-import com.github.yumelira.yumebox.presentation.component.NavigationBackIcon
-import com.github.yumelira.yumebox.presentation.component.ScreenLazyColumn
-import com.github.yumelira.yumebox.presentation.component.SmallTitle
-import com.github.yumelira.yumebox.presentation.component.TopBar
-import com.github.yumelira.yumebox.presentation.component.TrafficBarChart
+import com.github.yumelira.yumebox.presentation.component.*
 import com.github.yumelira.yumebox.presentation.viewmodel.TrafficStatisticsViewModel
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import dev.oom_wg.purejoy.mlang.MLang
+import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+<<<<<<< HEAD
 import dev.oom_wg.purejoy.mlang.MLang
 import top.yukonga.miuix.kmp.basic.Card
+=======
+>>>>>>> upstream/Yume
 
 @Destination<RootGraph>
 @Composable
@@ -125,13 +127,20 @@ fun TrafficStatisticsScreen(navigator: DestinationsNavigator) {
                             )
 
                             Spacer(modifier = Modifier.height(4.dp))
-                            
+
                             val differenceText = when (selectedTimeRange) {
                                 StatisticsTimeRange.TODAY -> when {
-                                    trafficDifference > 0 -> MLang.TrafficStatistics.Compare.MoreThanYesterday.format(formatBytes(trafficDifference))
-                                    trafficDifference < 0 -> MLang.TrafficStatistics.Compare.LessThanYesterday.format(formatBytes(trafficDifference))
+                                    trafficDifference > 0 -> MLang.TrafficStatistics.Compare.MoreThanYesterday.format(
+                                        formatBytes(trafficDifference)
+                                    )
+
+                                    trafficDifference < 0 -> MLang.TrafficStatistics.Compare.LessThanYesterday.format(
+                                        formatBytes(trafficDifference)
+                                    )
+
                                     else -> MLang.TrafficStatistics.Compare.SameAsYesterday
                                 }
+
                                 StatisticsTimeRange.WEEK -> MLang.TrafficStatistics.Compare.WeekStats
                             }
                             Text(
@@ -310,7 +319,7 @@ private fun ProfileUsageItem(
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary
             )
         }
-        
+
         Text(
             text = formatBytes(usage.totalBytes),
             style = MiuixTheme.textStyles.body1,

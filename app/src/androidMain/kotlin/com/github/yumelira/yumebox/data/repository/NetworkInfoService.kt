@@ -20,23 +20,18 @@
 
 package com.github.yumelira.yumebox.data.repository
 
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.get
-import io.ktor.client.statement.bodyAsText
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.MutableSharedFlow
+import com.github.yumelira.yumebox.core.util.NetworkInterfaces
+import io.ktor.client.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import com.github.yumelira.yumebox.core.util.NetworkInterfaces
-import kotlinx.coroutines.delay
 import java.io.Closeable
 
 @Serializable
@@ -47,14 +42,16 @@ data class IpInfo(
 )
 
 sealed class IpMonitoringState {
-    data class Success(val localIp: String?, val externalIp: IpInfo?, val isProxyActive: Boolean = false) : IpMonitoringState()
+    data class Success(val localIp: String?, val externalIp: IpInfo?, val isProxyActive: Boolean = false) :
+        IpMonitoringState()
+
     data class Error(val message: String) : IpMonitoringState()
     object Loading : IpMonitoringState()
 }
 
 class NetworkInfoService : Closeable {
     private val json = Json { ignoreUnknownKeys = true }
-    
+
     private val httpClient = HttpClient {
         install(HttpTimeout) {
             requestTimeoutMillis = 5000
@@ -66,12 +63,13 @@ class NetworkInfoService : Closeable {
         }
     }
 
-    private val _refreshTrigger = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-    
+    private val _refreshTrigger =
+        MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
     override fun close() {
         httpClient.close()
     }
-    
+
     fun triggerRefresh() {
         _refreshTrigger.tryEmit(Unit)
     }
@@ -93,7 +91,7 @@ class NetworkInfoService : Closeable {
 
     fun startIpMonitoring(isProxyActiveFlow: Flow<Boolean>): Flow<IpMonitoringState> = flow {
         var lastSuccessfulState: IpMonitoringState.Success? = null
-        
+
         try {
             val localIp = getLocalIp()
             val externalIp = getExternalIp()
@@ -105,7 +103,7 @@ class NetworkInfoService : Closeable {
                 emit(IpMonitoringState.Error(e.message ?: "Unknown error"))
             }
         }
-        
+
         val refreshFlow = merge(
             _refreshTrigger,
             flow {
@@ -115,7 +113,7 @@ class NetworkInfoService : Closeable {
                 }
             }
         )
-        
+
         combine(refreshFlow, isProxyActiveFlow) { _, isProxyActive ->
             try {
                 val localIp = getLocalIp()
@@ -124,7 +122,7 @@ class NetworkInfoService : Closeable {
                 lastSuccessfulState = newState
                 newState
             } catch (e: Exception) {
-                lastSuccessfulState?.copy(isProxyActive = isProxyActive) 
+                lastSuccessfulState?.copy(isProxyActive = isProxyActive)
                     ?: IpMonitoringState.Error(e.message ?: "Unknown error")
             }
         }.collect { state ->

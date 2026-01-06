@@ -20,17 +20,11 @@
 
 package com.github.yumelira.yumebox.common.util
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
-import androidx.activity.ComponentActivity
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 
 object VpnUtils {
-
-    private const val VPN_PERMISSION_REQUEST_CODE = 1001
 
     fun checkVpnPermission(context: Context): Boolean {
         return VpnService.prepare(context) == null
@@ -38,43 +32,5 @@ object VpnUtils {
 
     fun getVpnPermissionIntent(context: Context): Intent? {
         return VpnService.prepare(context)
-    }
-
-    fun registerVpnPermissionLauncher(
-        activity: ComponentActivity,
-        onPermissionGranted: () -> Unit,
-        onPermissionDenied: () -> Unit
-    ): ActivityResultLauncher<Intent> {
-        return activity.registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult()
-        ) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                onPermissionGranted()
-            } else {
-                onPermissionDenied()
-            }
-        }
-    }
-
-    fun requestVpnPermissionLegacy(activity: Activity) {
-        val vpnIntent = VpnService.prepare(activity)
-        if (vpnIntent != null) {
-            activity.startActivityForResult(vpnIntent, VPN_PERMISSION_REQUEST_CODE)
-        }
-    }
-
-    fun handleVpnPermissionResult(
-        requestCode: Int,
-        resultCode: Int,
-        onPermissionGranted: () -> Unit,
-        onPermissionDenied: () -> Unit
-    ) {
-        if (requestCode == VPN_PERMISSION_REQUEST_CODE) {
-            if (resultCode == Activity.RESULT_OK) {
-                onPermissionGranted()
-            } else {
-                onPermissionDenied()
-            }
-        }
     }
 }

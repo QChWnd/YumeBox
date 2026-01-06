@@ -20,33 +20,29 @@
 
 package com.github.yumelira.yumebox.presentation.screen
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.yumelira.yumebox.BuildConfig
 import com.github.yumelira.yumebox.R
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.OpenSourceLicensesScreenDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import dev.oom_wg.purejoy.mlang.MLang
 import com.github.yumelira.yumebox.core.bridge.Bridge
 import com.github.yumelira.yumebox.presentation.component.Card
 import com.github.yumelira.yumebox.presentation.component.LinkItem
 import com.github.yumelira.yumebox.presentation.component.ScreenLazyColumn
 import com.github.yumelira.yumebox.presentation.component.SmallTitle
 import com.github.yumelira.yumebox.presentation.component.TopBar
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.generated.destinations.OpenSourceLicensesScreenDestination
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import dev.oom_wg.purejoy.mlang.MLang
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.extra.SuperArrow
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -57,13 +53,13 @@ fun AboutScreen(navigator: DestinationsNavigator) {
 
     val scrollBehavior = MiuixScrollBehavior()
     var coreVersion by remember { mutableStateOf(MLang.About.App.VersionLoading) }
-    val context = LocalContext.current
+    LocalContext.current
 
     LaunchedEffect(Unit) {
-        try {
-            coreVersion = Bridge.nativeCoreVersion()
-        } catch (e: Exception) {
-            coreVersion = MLang.About.App.VersionFailed
+        coreVersion = try {
+            Bridge.nativeCoreVersion()
+        } catch (_: Exception) {
+            MLang.About.App.VersionFailed
         }
     }
 
@@ -78,8 +74,7 @@ fun AboutScreen(navigator: DestinationsNavigator) {
         ) {
             item {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -95,8 +90,7 @@ fun AboutScreen(navigator: DestinationsNavigator) {
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Text(
-                        text = "YumeBox",
-                        style = MiuixTheme.textStyles.title1
+                        text = "YumeBox", style = MiuixTheme.textStyles.title1
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -111,34 +105,27 @@ fun AboutScreen(navigator: DestinationsNavigator) {
                 }
                 Card {
                     BasicComponent(
-                        title = "YumeBox",
-                        summary = MLang.About.App.Description
+                        title = "YumeBox", summary = MLang.About.App.Description
                     )
                 }
                 SmallTitle(MLang.About.Section.ProjectLinks)
 
                 Card {
                     LinkItem(
-                        title = "YumeBox",
-                        url = "https://github.com/YumeLira/YumeBox"
+                        title = "YumeBox", url = "https://github.com/YumeLira/YumeBox"
                     )
                     LinkItem(
-                        title = "Mihomo",
-                        url = "https://github.com/MetaCubeX/mihomo"
+                        title = "Mihomo", url = "https://github.com/MetaCubeX/mihomo"
                     )
                 }
                 SmallTitle(MLang.About.Section.More)
 
                 Card {
                     LinkItem(
-                        title = MLang.About.Link.TelegramGroup,
-                        url = "https://t.me/OOM_Group",
-                        showArrow = true
+                        title = MLang.About.Link.TelegramGroup, url = "https://t.me/OOM_Group", showArrow = true
                     )
                     LinkItem(
-                        title = MLang.About.Link.TelegramChannel,
-                        url = "https://t.me/YumeLira",
-                        showArrow = true
+                        title = MLang.About.Link.TelegramChannel, url = "https://t.me/YumeLira", showArrow = true
                     )
                 }
                 SmallTitle(MLang.About.Section.License)
@@ -147,8 +134,7 @@ fun AboutScreen(navigator: DestinationsNavigator) {
                     SuperArrow(
                         title = MLang.About.License.Libraries,
                         summary = MLang.About.License.LibrariesSummary,
-                        onClick = { navigator.navigate(OpenSourceLicensesScreenDestination) }
-                    )
+                        onClick = { navigator.navigate(OpenSourceLicensesScreenDestination) })
                     BasicComponent(
                         title = MLang.About.License.AgplName,
                         summary = MLang.About.License.AgplDescription,
@@ -171,18 +157,4 @@ fun AboutScreen(navigator: DestinationsNavigator) {
             }
         }
     }
-}
-
-@Composable
-fun CircleAvatar(
-    image: Painter,
-    size: Dp = 40.dp
-) {
-    Image(
-        painter = image,
-        contentDescription = null,
-        modifier = Modifier
-            .size(size)
-            .clip(CircleShape)
-    )
 }

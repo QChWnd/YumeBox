@@ -23,16 +23,10 @@ package com.github.yumelira.yumebox.data.model
 import com.github.yumelira.yumebox.common.util.ByteFormatter
 import kotlinx.serialization.Serializable
 import java.util.*
-import dev.oom_wg.purejoy.mlang.MLang
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 
 @Serializable
 enum class ProfileType {
-    URL,
-    FILE,
+    URL, FILE,
 }
 
 @Serializable
@@ -53,12 +47,6 @@ data class Subscription(
     val autoUpdate: Boolean = false
 )
 
-sealed class SubscriptionTestResult {
-    object Idle : SubscriptionTestResult()
-    data class Success(val message: String = "成功", val timestamp: Long = System.currentTimeMillis()) : SubscriptionTestResult()
-    data class Failure(val message: String, val timestamp: Long = System.currentTimeMillis()) : SubscriptionTestResult()
-}
-
 @Serializable
 data class Profile(
     val id: String,
@@ -75,45 +63,45 @@ data class Profile(
     val usedBytes: Long = 0L,
     val totalBytes: Long? = null,
     val lastUpdatedAt: Long? = null,
+    val order: Int = 0,
 ) {
     fun getDisplayProvider(): String = when (type) {
-        ProfileType.URL -> provider ?: MLang.Component.ProfileCard.RemoteSubscription
-        ProfileType.FILE -> MLang.Component.ProfileCard.LocalFile
+        ProfileType.URL -> provider ?: "远程订阅"
+        ProfileType.FILE -> "本地文件"
     }
 
     fun getInfoText(): String = when (type) {
         ProfileType.URL -> {
             buildString {
-                if (totalBytes != null && totalBytes!! > 0) {
-                    val usedPercent = if (totalBytes!! > 0) (usedBytes * 100 / totalBytes!!) else 0
-                    append(MLang.Component.ProfileCard.Traffic.format(
-                        ByteFormatter.format(usedBytes),
-                        ByteFormatter.format(totalBytes!!),
-                        usedPercent
-                    ))
+                if (totalBytes != null && totalBytes > 0) {
+                    val usedPercent = usedBytes * 100 / totalBytes
+                    append(
+                        "流量: ${com.github.yumelira.yumebox.common.util.ByteFormatter.format(usedBytes)}/${
+                            com.github.yumelira.yumebox.common.util.ByteFormatter.format(
+                                totalBytes
+                            )
+                        } ($usedPercent%)"
+                    )
                 } else if (usedBytes > 0) {
-                    append(MLang.Component.ProfileCard.UsedTraffic.format(
-                        ByteFormatter.format(usedBytes)
-                    ))
+                    append("已用流量: ${com.github.yumelira.yumebox.common.util.ByteFormatter.format(usedBytes)}")
                 } else {
-                    append(MLang.Component.ProfileCard.ClickToUpdate)
+                    append("点击更新")
                 }
 
                 expireAt?.let { expire ->
-                    val expireDate = Instant.ofEpochMilli(expire)
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDate()
-                    val now = LocalDate.now()
-                    val daysLeft = ChronoUnit.DAYS.between(now, expireDate)
+                    val expireDate =
+                        java.time.Instant.ofEpochMilli(expire).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                    val now = java.time.LocalDate.now()
+                    val daysLeft = java.time.temporal.ChronoUnit.DAYS.between(now, expireDate)
 
                     if (isNotEmpty()) append("\n")
 
                     if (daysLeft > 0) {
-                        append(MLang.Component.ProfileCard.ExpireAt.format(expireDate, daysLeft))
+                        append("到期于: $expireDate (剩余 ${daysLeft}天)")
                     } else if (daysLeft == 0L) {
-                        append(MLang.Component.ProfileCard.ExpireToday)
+                        append("今日到期")
                     } else {
-                        append(MLang.Component.ProfileCard.Expired.format(expireDate))
+                        append("已过期: $expireDate")
                     }
                 }
 
@@ -122,7 +110,8 @@ data class Profile(
                 }
             }
         }
-        ProfileType.FILE -> MLang.Component.ProfileCard.LocalConfig
+
+        ProfileType.FILE -> "本地配置"
     }
 
     private fun getRelativeTimeString(timestamp: Long): String {
@@ -132,17 +121,16 @@ data class Profile(
         val hours = diff / (1000 * 60 * 60)
 
         return when {
-            diff < 60 * 1000 -> MLang.Component.ProfileCard.JustNow
-            minutes < 60 -> MLang.Component.ProfileCard.MinutesAgo.format(minutes)
-            hours < 24 -> MLang.Component.ProfileCard.HoursAgo.format(hours)
+            diff < 60 * 1000 -> "刚刚"
+            minutes < 60 -> "$minutes 分钟前"
+            hours < 24 -> "$hours 小时前"
             else -> {
                 val days = diff / (1000 * 60 * 60 * 24)
-                MLang.Component.ProfileCard.DaysAgo.format(days)
+                "$days 天前"
             }
         }
     }
 
     fun shouldShowUpdateButton(): Boolean = type == ProfileType.URL
 
-    fun shouldShowSubscriptionActions(): Boolean = type == ProfileType.URL
 }

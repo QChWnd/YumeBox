@@ -24,10 +24,10 @@ import android.app.Application
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
-import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.yumelira.yumebox.data.store.NetworkSettingsStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,8 +35,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.github.yumelira.yumebox.data.store.NetworkSettingsStorage
-import dev.oom_wg.purejoy.mlang.MLang
+
 
 class AccessControlViewModel(
     application: Application,
@@ -64,13 +63,13 @@ class AccessControlViewModel(
         LABEL,
         INSTALL_TIME,
         UPDATE_TIME;
-        
+
         val displayName: String
             get() = when (this) {
-                PACKAGE_NAME -> MLang.AccessControl.SortMode.PackageName
-                LABEL -> MLang.AccessControl.SortMode.Label
-                INSTALL_TIME -> MLang.AccessControl.SortMode.InstallTime
-                UPDATE_TIME -> MLang.AccessControl.SortMode.UpdateTime
+                PACKAGE_NAME -> "包名"
+                LABEL -> "标签"
+                INSTALL_TIME -> "安装时间"
+                UPDATE_TIME -> "更新时间"
             }
     }
 
@@ -84,16 +83,41 @@ class AccessControlViewModel(
         val sortMode: SortMode = SortMode.LABEL,
         val descending: Boolean = false,
         val selectedFirst: Boolean = true,
-        val permissionGranted: Boolean = false,
-        val isMiuiSystem: Boolean = false,
-        val permissionCheckCompleted: Boolean = false,
+        val needsMiuiPermission: Boolean = false,
     )
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
     init {
-        checkPermissionAndLoadApps()
+        checkAndLoad()
+    }
+
+    private fun checkAndLoad() {
+        val context = getApplication<Application>()
+        val permission = "com.android.permission.GET_INSTALLED_APPS"
+
+        val hasPermission = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            loadApps()
+        } else {
+            val isMiui = runCatching {
+                val permissionInfo = context.packageManager.getPermissionInfo(permission, 0)
+                permissionInfo.packageName == "com.lbe.security.miui"
+            }.getOrElse { false }
+
+            if (isMiui) {
+                _uiState.update { it.copy(needsMiuiPermission = true, isLoading = false) }
+            } else {
+                loadApps()
+            }
+        }
+    }
+
+    fun onPermissionResult() {
+        _uiState.update { it.copy(needsMiuiPermission = false) }
+        loadApps()
     }
 
     private fun checkPermissionAndLoadApps() {
@@ -162,7 +186,14 @@ class AccessControlViewModel(
                     isLoading = false,
                     apps = apps,
                     selectedPackages = selectedPackages,
-                    filteredApps = filterApps(apps, state.searchQuery, state.showSystemApps, state.sortMode, state.descending, state.selectedFirst)
+                    filteredApps = filterApps(
+                        apps,
+                        state.searchQuery,
+                        state.showSystemApps,
+                        state.sortMode,
+                        state.descending,
+                        state.selectedFirst
+                    )
                 )
             }
         }
@@ -170,22 +201,22 @@ class AccessControlViewModel(
 
     private fun loadInstalledApps(selectedPackages: Set<String>): List<AppInfo> {
         val pm = getApplication<Application>().packageManager
+        val selfPackageName = getApplication<Application>().packageName
+
         val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
 
-        return packages
-            .filter { appInfo -> appInfo.packageName != SELF_PACKAGE_NAME }
-            .map { appInfo ->
-                val pkgInfo = runCatching { pm.getPackageInfo(appInfo.packageName, 0) }.getOrNull()
-                AppInfo(
-                    packageName = appInfo.packageName,
-                    label = appInfo.loadLabel(pm).toString(),
-                    icon = runCatching { appInfo.loadIcon(pm) }.getOrNull(),
-                    isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
-                    isSelected = selectedPackages.contains(appInfo.packageName),
-                    installTime = pkgInfo?.firstInstallTime ?: 0L,
-                    updateTime = pkgInfo?.lastUpdateTime ?: 0L
-                )
-            }
+        return packages.filter { it.packageName != selfPackageName }.map { appInfo ->
+            val pkgInfo = runCatching { pm.getPackageInfo(appInfo.packageName, 0) }.getOrNull()
+            AppInfo(
+                packageName = appInfo.packageName,
+                label = appInfo.loadLabel(pm).toString(),
+                icon = runCatching { appInfo.loadIcon(pm) }.getOrNull(),
+                isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                isSelected = selectedPackages.contains(appInfo.packageName),
+                installTime = pkgInfo?.firstInstallTime ?: 0L,
+                updateTime = pkgInfo?.lastUpdateTime ?: 0L
+            )
+        }
     }
 
     private fun filterApps(
@@ -221,7 +252,14 @@ class AccessControlViewModel(
         _uiState.update { state ->
             state.copy(
                 searchQuery = query,
-                filteredApps = filterApps(state.apps, query, state.showSystemApps, state.sortMode, state.descending, state.selectedFirst)
+                filteredApps = filterApps(
+                    state.apps,
+                    query,
+                    state.showSystemApps,
+                    state.sortMode,
+                    state.descending,
+                    state.selectedFirst
+                )
             )
         }
     }
@@ -230,7 +268,14 @@ class AccessControlViewModel(
         _uiState.update { state ->
             state.copy(
                 sortMode = mode,
-                filteredApps = filterApps(state.apps, state.searchQuery, state.showSystemApps, mode, state.descending, state.selectedFirst)
+                filteredApps = filterApps(
+                    state.apps,
+                    state.searchQuery,
+                    state.showSystemApps,
+                    mode,
+                    state.descending,
+                    state.selectedFirst
+                )
             )
         }
     }
@@ -239,7 +284,14 @@ class AccessControlViewModel(
         _uiState.update { state ->
             state.copy(
                 descending = desc,
-                filteredApps = filterApps(state.apps, state.searchQuery, state.showSystemApps, state.sortMode, desc, state.selectedFirst)
+                filteredApps = filterApps(
+                    state.apps,
+                    state.searchQuery,
+                    state.showSystemApps,
+                    state.sortMode,
+                    desc,
+                    state.selectedFirst
+                )
             )
         }
     }
@@ -248,7 +300,14 @@ class AccessControlViewModel(
         _uiState.update { state ->
             state.copy(
                 selectedFirst = selectedFirst,
-                filteredApps = filterApps(state.apps, state.searchQuery, state.showSystemApps, state.sortMode, state.descending, selectedFirst)
+                filteredApps = filterApps(
+                    state.apps,
+                    state.searchQuery,
+                    state.showSystemApps,
+                    state.sortMode,
+                    state.descending,
+                    selectedFirst
+                )
             )
         }
     }
@@ -257,7 +316,14 @@ class AccessControlViewModel(
         _uiState.update { state ->
             state.copy(
                 showSystemApps = show,
-                filteredApps = filterApps(state.apps, state.searchQuery, show, state.sortMode, state.descending, state.selectedFirst)
+                filteredApps = filterApps(
+                    state.apps,
+                    state.searchQuery,
+                    show,
+                    state.sortMode,
+                    state.descending,
+                    state.selectedFirst
+                )
             )
         }
     }
@@ -281,13 +347,19 @@ class AccessControlViewModel(
             state.copy(
                 selectedPackages = newSelectedPackages,
                 apps = newApps,
-                filteredApps = filterApps(newApps, state.searchQuery, state.showSystemApps, state.sortMode, state.descending, state.selectedFirst)
+                filteredApps = filterApps(
+                    newApps,
+                    state.searchQuery,
+                    state.showSystemApps,
+                    state.sortMode,
+                    state.descending,
+                    state.selectedFirst
+                )
             )
         }
 
 
         val packagesToSave = _uiState.value.selectedPackages
-        Log.d("AccessControlVM", "保存应用列表: $packagesToSave (数量: ${packagesToSave.size})")
         storage.accessControlPackages.set(packagesToSave)
     }
 
@@ -307,7 +379,14 @@ class AccessControlViewModel(
             state.copy(
                 selectedPackages = newSelectedPackages,
                 apps = newApps,
-                filteredApps = filterApps(newApps, state.searchQuery, state.showSystemApps, state.sortMode, state.descending, state.selectedFirst)
+                filteredApps = filterApps(
+                    newApps,
+                    state.searchQuery,
+                    state.showSystemApps,
+                    state.sortMode,
+                    state.descending,
+                    state.selectedFirst
+                )
             )
         }
 
@@ -330,7 +409,14 @@ class AccessControlViewModel(
             state.copy(
                 selectedPackages = newSelectedPackages,
                 apps = newApps,
-                filteredApps = filterApps(newApps, state.searchQuery, state.showSystemApps, state.sortMode, state.descending, state.selectedFirst)
+                filteredApps = filterApps(
+                    newApps,
+                    state.searchQuery,
+                    state.showSystemApps,
+                    state.sortMode,
+                    state.descending,
+                    state.selectedFirst
+                )
             )
         }
 
@@ -354,7 +440,14 @@ class AccessControlViewModel(
             state.copy(
                 selectedPackages = newSelectedPackages,
                 apps = newApps,
-                filteredApps = filterApps(newApps, state.searchQuery, state.showSystemApps, state.sortMode, state.descending, state.selectedFirst)
+                filteredApps = filterApps(
+                    newApps,
+                    state.searchQuery,
+                    state.showSystemApps,
+                    state.sortMode,
+                    state.descending,
+                    state.selectedFirst
+                )
             )
         }
         storage.accessControlPackages.set(_uiState.value.selectedPackages)
@@ -369,11 +462,11 @@ class AccessControlViewModel(
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .toSet()
-        
+
         _uiState.update { state ->
             val validPackages = packages.intersect(state.apps.map { it.packageName }.toSet())
             val newSelectedPackages = state.selectedPackages + validPackages
-            
+
             val newApps = state.apps.map { app ->
                 if (validPackages.contains(app.packageName)) {
                     app.copy(isSelected = true)
@@ -381,14 +474,21 @@ class AccessControlViewModel(
                     app
                 }
             }
-            
+
             state.copy(
                 selectedPackages = newSelectedPackages,
                 apps = newApps,
-                filteredApps = filterApps(newApps, state.searchQuery, state.showSystemApps, state.sortMode, state.descending, state.selectedFirst)
+                filteredApps = filterApps(
+                    newApps,
+                    state.searchQuery,
+                    state.showSystemApps,
+                    state.sortMode,
+                    state.descending,
+                    state.selectedFirst
+                )
             )
         }
-        
+
         storage.accessControlPackages.set(_uiState.value.selectedPackages)
         return packages.intersect(_uiState.value.apps.map { it.packageName }.toSet()).size
     }

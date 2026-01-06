@@ -18,10 +18,11 @@
  *
  */
 
-package com.github.yumelira.yumebox.presentation.component
+package com.github.yumelira.yumebox.presentation.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -31,21 +32,23 @@ import android.view.ViewGroup
 import android.webkit.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.statusBarsPadding
+<<<<<<< HEAD
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+=======
+import androidx.compose.runtime.*
+>>>>>>> upstream/Yume
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.github.yumelira.yumebox.presentation.webview.WebViewActivity
-import top.yukonga.miuix.kmp.basic.Text
 import dev.oom_wg.purejoy.mlang.MLang
+import top.yukonga.miuix.kmp.basic.Text
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -57,7 +60,7 @@ fun LocalWebView(
     onPageError: (String, String) -> Unit = { _, _ -> },
 ) {
     LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
 
     LaunchedEffect(enableDebug) {
@@ -75,9 +78,11 @@ fun LocalWebView(
                 Lifecycle.Event.ON_PAUSE -> {
                     webViewRef.value?.onPause()
                 }
+
                 Lifecycle.Event.ON_RESUME -> {
                     webViewRef.value?.onResume()
                 }
+
                 else -> {}
             }
         }
@@ -101,8 +106,7 @@ fun LocalWebView(
 
     if (initialUrl.isEmpty()) {
         Box(
-            modifier = modifier.statusBarsPadding(),
-            contentAlignment = Alignment.Center
+            modifier = modifier.statusBarsPadding(), contentAlignment = Alignment.Center
         ) {
             Text(MLang.Component.WebView.InvalidUrl)
         }
@@ -127,7 +131,7 @@ private fun createWebView(
     onPageError: (String, String) -> Unit,
 ): WebView {
     val activity = context as? WebViewActivity
-    
+
     return WebView(context).apply {
         layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -140,11 +144,9 @@ private fun createWebView(
 
             allowFileAccess = true
             allowContentAccess = true
-
-            @Suppress("DEPRECATION")
             allowFileAccessFromFileURLs = true
-            @Suppress("DEPRECATION")
             allowUniversalAccessFromFileURLs = true
+
 
             setSupportZoom(true)
             builtInZoomControls = false
@@ -163,6 +165,22 @@ private fun createWebView(
 
         webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val url = request?.url?.toString() ?: return false
+                val scheme = request.url?.scheme
+                
+                // 处理自定义 scheme (非 http/https)
+                if (scheme != null && scheme != "http" && scheme != "https" && scheme != "file") {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, request.url)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                        return true
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        return true
+                    }
+                }
+                
                 return false
             }
 
@@ -177,8 +195,7 @@ private fun createWebView(
                 request: WebResourceRequest?,
                 error: WebResourceError?,
             ) {
-                @Suppress("DEPRECATION")
-                super.onReceivedError(view, request, error)
+                @Suppress("DEPRECATION") super.onReceivedError(view, request, error)
                 if (request?.isForMainFrame == true) {
                     val errorUrl = request.url?.toString() ?: "unknown"
                     val errorCode = error?.errorCode ?: -1
@@ -209,8 +226,7 @@ private fun createWebView(
                 description: String?,
                 failingUrl: String?,
             ) {
-                @Suppress("DEPRECATION")
-                super.onReceivedError(view, errorCode, description, failingUrl)
+                @Suppress("DEPRECATION") super.onReceivedError(view, errorCode, description, failingUrl)
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
                     onPageError(failingUrl ?: "unknown", "Error $errorCode: $description")
                 }
@@ -223,9 +239,7 @@ private fun createWebView(
             }
 
             override fun onShowFileChooser(
-                webView: WebView?,
-                filePathCallback: ValueCallback<Array<Uri>>?,
-                fileChooserParams: FileChooserParams?
+                webView: WebView?, filePathCallback: ValueCallback<Array<Uri>>?, fileChooserParams: FileChooserParams?
             ): Boolean {
                 if (activity == null) {
                     filePathCallback?.onReceiveValue(null)

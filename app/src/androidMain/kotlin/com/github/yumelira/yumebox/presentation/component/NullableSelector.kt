@@ -21,8 +21,8 @@
 package com.github.yumelira.yumebox.presentation.component
 
 import androidx.compose.runtime.Composable
-import top.yukonga.miuix.kmp.extra.SuperDropdown
 import dev.oom_wg.purejoy.mlang.MLang
+import top.yukonga.miuix.kmp.extra.SuperDropdown
 
 @Composable
 fun NullableBooleanSelector(
@@ -31,7 +31,8 @@ fun NullableBooleanSelector(
     value: Boolean?,
     onValueChange: (Boolean?) -> Unit,
 ) {
-    val items = listOf(MLang.Component.Selector.NotModify, MLang.Component.Selector.Enable, MLang.Component.Selector.Disable)
+    val items =
+        listOf(MLang.Component.Selector.NotModify, MLang.Component.Selector.Enable, MLang.Component.Selector.Disable)
     val selectedIndex = when (value) {
         null -> 0
         true -> 1

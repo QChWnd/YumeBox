@@ -10,6 +10,11 @@ on:
   workflow_dispatch:
   workflow_call:
 
+concurrency:
+  group: Build-${{ github.ref }}
+  cancel-in-progress: true
+
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,7 +30,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '24'
+          java-version: '25'
           cache: 'gradle'
 
 
@@ -70,7 +75,7 @@ jobs:
       - name: Sync kernel
         run: |
           chmod +x scripts/sync-kernel.sh
-          ./scripts/sync-kernel.sh meta
+          ./scripts/sync-kernel.sh alpha
 
       - name: Check upload availability
         id: check_upload

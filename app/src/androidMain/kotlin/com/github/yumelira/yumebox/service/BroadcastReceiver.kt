@@ -23,6 +23,7 @@ package com.github.yumelira.yumebox.service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import com.github.yumelira.yumebox.MainActivity
 
 class DialerReceiver : BroadcastReceiver() {
@@ -66,7 +67,15 @@ class RestartReceiver : BroadcastReceiver() {
             Intent.ACTION_MY_PACKAGE_REPLACED,
                 -> {
                 val serviceIntent = Intent(context, AutoRestartService::class.java)
-                context.startService(serviceIntent)
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(serviceIntent)
+                    } else {
+                        context.startService(serviceIntent)
+                    }
+                } catch (e: Exception) {
+                    // 忽略启动失败（可能是因为应用在后台）
+                }
             }
         }
     }

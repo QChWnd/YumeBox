@@ -20,8 +20,15 @@
 
 package com.github.yumelira.yumebox.presentation.screen
 
+import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -41,21 +48,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.core.graphics.drawable.toBitmap
-import android.widget.Toast
-import com.github.yumelira.yumebox.MainActivity
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
 import com.github.yumelira.yumebox.presentation.component.Card
 import com.github.yumelira.yumebox.presentation.component.ScreenLazyColumn
 import com.github.yumelira.yumebox.presentation.component.SmallTitle
@@ -63,16 +61,20 @@ import com.github.yumelira.yumebox.presentation.component.TopBar
 import com.github.yumelira.yumebox.presentation.icon.Yume
 import com.github.yumelira.yumebox.presentation.icon.yume.`Settings-2`
 import com.github.yumelira.yumebox.presentation.viewmodel.AccessControlViewModel
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.extra.SuperBottomSheet
 import top.yukonga.miuix.kmp.extra.SuperDropdown
 import top.yukonga.miuix.kmp.extra.SuperSwitch
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import dev.oom_wg.purejoy.mlang.MLang
 
 @Composable
 @Destination<RootGraph>
 fun AccessControlScreen(navigator: DestinationsNavigator) {
+    val context = LocalContext.current
     val scrollBehavior = MiuixScrollBehavior()
     val viewModel = koinViewModel<AccessControlViewModel>()
     val uiState by viewModel.uiState.collectAsState()
@@ -80,6 +82,24 @@ fun AccessControlScreen(navigator: DestinationsNavigator) {
 
     val showSettingsSheet = rememberSaveable { mutableStateOf(false) }
     val searchExpanded = rememberSaveable { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                viewModel.onPermissionResult()
+            }
+        }
+    )
+
+    LaunchedEffect(Unit) {
+        snapshotFlow { uiState.needsMiuiPermission }
+            .collect { needsPermission ->
+                if (needsPermission) {
+                    permissionLauncher.launch("com.android.permission.GET_INSTALLED_APPS")
+                }
+            }
+    }
 
     BackHandler(enabled = searchExpanded.value) {
         searchExpanded.value = false
@@ -91,14 +111,14 @@ fun AccessControlScreen(navigator: DestinationsNavigator) {
         Scaffold(
             topBar = {
                 TopBar(
-                    title = MLang.AccessControl.Title,
+                    title = "访问控制",
                     scrollBehavior = scrollBehavior,
                     actions = {
                         IconButton(
                             modifier = Modifier.padding(end = 24.dp),
                             onClick = { showSettingsSheet.value = true }
                         ) {
-                            Icon(Yume.`Settings-2`, contentDescription = MLang.AccessControl.Settings.Title)
+                            Icon(Yume.`Settings-2`, contentDescription = "访问控制设置")
                         }
                     }
                 )
@@ -109,7 +129,7 @@ fun AccessControlScreen(navigator: DestinationsNavigator) {
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(MLang.AccessControl.AppList.Loading, color = MiuixTheme.colorScheme.onSurface)
+                    Text("loading...", color = MiuixTheme.colorScheme.onSurface)
                 }
             } else if (uiState.isMiuiSystem && !uiState.permissionGranted) {
                 Box(
@@ -156,7 +176,7 @@ fun AccessControlScreen(navigator: DestinationsNavigator) {
                                     onSearch = { expanded = false },
                                     expanded = expanded,
                                     onExpandedChange = { expanded = it },
-                                    label = MLang.AccessControl.Search.Placeholder
+                                    label = "搜索应用..."
                                 )
                             },
                             expanded = expanded,
@@ -166,7 +186,7 @@ fun AccessControlScreen(navigator: DestinationsNavigator) {
                     }
 
                     item {
-                        SmallTitle(MLang.AccessControl.AppList.Title.format(uiState.selectedPackages.size))
+                        SmallTitle("应用列表 (${uiState.selectedPackages.size} 已选择)")
                     }
 
                     items(
@@ -188,27 +208,27 @@ fun AccessControlScreen(navigator: DestinationsNavigator) {
 
             SuperBottomSheet(
                 show = showSettingsSheet,
-                title = MLang.AccessControl.Settings.Title,
+                title = "访问控制设置",
                 onDismissRequest = { showSettingsSheet.value = false },
                 insideMargin = DpSize(32.dp, 16.dp),
             ) {
-                val clipboardManager = LocalClipboardManager.current
                 val context = LocalContext.current
-                
+                val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
                 Column {
                     top.yukonga.miuix.kmp.basic.Card {
                         SuperSwitch(
-                            title = MLang.AccessControl.Settings.ShowSystemApps,
+                            title = "显示系统应用",
                             checked = uiState.showSystemApps,
                             onCheckedChange = { viewModel.onShowSystemAppsChange(it) }
                         )
                         SuperSwitch(
-                            title = MLang.AccessControl.Settings.DescendingOrder,
+                            title = "倒序排列",
                             checked = uiState.descending,
                             onCheckedChange = { viewModel.onDescendingChange(it) }
                         )
                         SuperSwitch(
-                            title = MLang.AccessControl.Settings.SelectedFirst,
+                            title = "已选应用优先",
                             checked = uiState.selectedFirst,
                             onCheckedChange = { viewModel.onSelectedFirstChange(it) }
                         )
@@ -219,8 +239,8 @@ fun AccessControlScreen(navigator: DestinationsNavigator) {
 
                     top.yukonga.miuix.kmp.basic.Card {
                         SuperDropdown(
-                            title = MLang.AccessControl.Settings.SortMode,
-                            summary = MLang.AccessControl.Settings.SortModeCurrent.format(uiState.sortMode.displayName),
+                            title = "排序方式",
+                            summary = "当前：${uiState.sortMode.displayName}",
                             items = AccessControlViewModel.SortMode.entries.map { it.displayName },
                             selectedIndex = AccessControlViewModel.SortMode.entries
                                 .indexOf(uiState.sortMode)
@@ -231,8 +251,8 @@ fun AccessControlScreen(navigator: DestinationsNavigator) {
                             }
                         )
                         SuperDropdown(
-                            title = MLang.AccessControl.Settings.BatchOperation,
-                            items = listOf(MLang.AccessControl.Settings.SelectAll, MLang.AccessControl.Settings.DeselectAll, MLang.AccessControl.Settings.Invert),
+                            title = "批量操作",
+                            items = listOf("全选", "全不选", "反选"),
                             selectedIndex = 0,
                             onSelectedIndexChange = { index ->
                                 when (index) {
@@ -243,24 +263,35 @@ fun AccessControlScreen(navigator: DestinationsNavigator) {
                             }
                         )
                         SuperDropdown(
-                            title = MLang.AccessControl.Settings.ImportExport,
-                            items = listOf(MLang.AccessControl.Settings.Import, MLang.AccessControl.Settings.Export),
+                            title = "导入/导出",
+                            items = listOf("从剪贴板导入", "导出到剪贴板"),
                             selectedIndex = 0,
                             onSelectedIndexChange = { index ->
                                 when (index) {
                                     0 -> {
-                                        val text = clipboardManager.getText()?.text ?: ""
+                                        val clipData = clipboardManager.primaryClip
+                                        val text = if (clipData != null && clipData.itemCount > 0) {
+                                            clipData.getItemAt(0)?.text?.toString() ?: ""
+                                        } else {
+                                            ""
+                                        }
                                         if (text.isNotEmpty()) {
                                             val count = viewModel.importPackages(text)
-                                            Toast.makeText(context, MLang.AccessControl.Settings.ImportSuccess.format(count), Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "成功导入 $count 个应用", Toast.LENGTH_SHORT).show()
                                         } else {
-                                            Toast.makeText(context, MLang.AccessControl.Settings.ImportFailed, Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "导入失败", Toast.LENGTH_SHORT).show()
                                         }
                                     }
+
                                     1 -> {
                                         val exportText = viewModel.exportPackages()
-                                        clipboardManager.setText(AnnotatedString(exportText))
-                                        Toast.makeText(context, MLang.AccessControl.Settings.ExportSuccess.format(uiState.selectedPackages.size), Toast.LENGTH_SHORT).show()
+                                        val clip = ClipData.newPlainText("packages", exportText)
+                                        clipboardManager.setPrimaryClip(clip)
+                                        Toast.makeText(
+                                            context,
+                                            "成功导出 ${uiState.selectedPackages.size} 个应用",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     }
                                 }
                             }
@@ -276,14 +307,14 @@ fun AccessControlScreen(navigator: DestinationsNavigator) {
                         onClick = { showSettingsSheet.value = false },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(MLang.AccessControl.Button.Cancel)
+                        Text("取消")
                     }
                     Button(
                         onClick = { showSettingsSheet.value = false },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColorsPrimary()
                     ) {
-                        Text(MLang.AccessControl.Button.Confirm, color = MiuixTheme.colorScheme.background)
+                        Text("确定", color = MiuixTheme.colorScheme.background)
                     }
                 }
             }
@@ -343,7 +374,7 @@ private fun ExpandedSearchOverlay(
             TextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
-                label = MLang.AccessControl.Search.Placeholder,
+                label = "搜索应用...",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -405,7 +436,8 @@ private fun AppCard(
                     Image(
                         bitmap = icon.toBitmap(width = 80, height = 80).asImageBitmap(),
                         contentDescription = app.label,
-                        modifier = Modifier.size(45.dp)
+                        modifier = Modifier
+                            .size(45.dp)
                             .padding(end = 12.dp)
                     )
                 }

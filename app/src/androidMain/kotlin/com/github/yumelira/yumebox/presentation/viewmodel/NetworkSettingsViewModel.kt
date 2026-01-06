@@ -23,21 +23,21 @@ package com.github.yumelira.yumebox.presentation.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.yumelira.yumebox.data.model.AccessControlMode
+import com.github.yumelira.yumebox.data.model.ProxyMode
+import com.github.yumelira.yumebox.data.model.TunStack
+import com.github.yumelira.yumebox.data.store.NetworkSettingsStorage
+import com.github.yumelira.yumebox.data.store.Preference
+import com.github.yumelira.yumebox.service.NetworkServiceManager
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import com.github.yumelira.yumebox.data.store.Preference
-import com.github.yumelira.yumebox.data.store.NetworkSettingsStorage
-import com.github.yumelira.yumebox.data.model.AccessControlMode
-import com.github.yumelira.yumebox.data.model.ProxyMode
-import com.github.yumelira.yumebox.data.model.TunStack
-import com.github.yumelira.yumebox.service.NetworkServiceManager
 
 class NetworkSettingsViewModel(
     application: Application,
-    private val storage: NetworkSettingsStorage,
+    storage: NetworkSettingsStorage,
 ) : AndroidViewModel(application) {
 
 
@@ -52,7 +52,6 @@ class NetworkSettingsViewModel(
     val systemProxy: Preference<Boolean> = storage.systemProxy
     val tunStack: Preference<TunStack> = storage.tunStack
     val accessControlMode: Preference<AccessControlMode> = storage.accessControlMode
-    val accessControlPackages: Preference<Set<String>> = storage.accessControlPackages
 
 
     val serviceState = serviceManager.serviceState
@@ -73,7 +72,6 @@ class NetworkSettingsViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = NetworkSettingsUiState()
     )
-
 
 
     fun onProxyModeChange(mode: ProxyMode) {
@@ -116,13 +114,8 @@ class NetworkSettingsViewModel(
     }
 
 
-
     fun startService(proxyMode: ProxyMode) {
         serviceManager.startService(proxyMode)
-    }
-
-    fun stopService() {
-        serviceManager.stopService()
     }
 
     fun restartService() {

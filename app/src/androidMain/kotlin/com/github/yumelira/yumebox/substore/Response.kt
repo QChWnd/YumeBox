@@ -20,12 +20,15 @@
 
 package com.github.yumelira.yumebox.substore
 
-data class Response(
-    var statusCode: Int = 200,
-    var headers: Map<String, String> = emptyMap(),
-    var body: String = "",
-) {
-    override fun toString(): String {
-        return "Response(statusCode=$statusCode, headers=$headers, body=$body)"
+import java.io.IOException
+import java.net.ServerSocket
+
+object NetworkUtil {
+    fun isPortInUse(port: Int): Boolean {
+        return try {
+            ServerSocket(port).use { false }
+        } catch (_: IOException) {
+            true
+        }
     }
 }

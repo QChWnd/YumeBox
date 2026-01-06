@@ -21,8 +21,8 @@
 package com.github.yumelira.yumebox.common.util
 
 import android.content.Context
-import java.io.File
 import com.github.yumelira.yumebox.substore.SubStorePaths
+import java.io.File
 
 object WebViewUtils {
 
@@ -32,7 +32,6 @@ object WebViewUtils {
         return distDir.exists() && indexFile.exists()
     }
 
-    fun checkLocalResources(context: Context): Boolean = checkLocalResources()
 
     fun getLocalFileUrl(path: String): String {
         val file = File(SubStorePaths.frontendDir, path)
@@ -43,19 +42,12 @@ object WebViewUtils {
         }
     }
 
-    fun getLocalFileUrl(context: Context, path: String): String = getLocalFileUrl(path)
-
     fun getLocalBaseUrl(): String {
         return "file://${SubStorePaths.frontendDir.absolutePath}/"
     }
 
     fun getLocalBaseUrl(context: Context): String = getLocalBaseUrl()
 
-    fun getSubStoreUrl(): String {
-        return getLocalFileUrl("index.html")
-    }
-
-    fun getSubStoreUrl(context: Context): String = getSubStoreUrl()
 
     fun getPanelUrl(context: Context, panelType: Int): String {
         val panelNames = listOf("zashboard", "metacubexd")
@@ -91,7 +83,6 @@ object WebViewUtils {
             }
         }
 
-
         val distDir = File(panelDir, "dist")
         if (distDir.exists()) {
             for (entryFile in entryFiles) {
@@ -101,7 +92,6 @@ object WebViewUtils {
                 }
             }
         }
-
         return null
     }
 }

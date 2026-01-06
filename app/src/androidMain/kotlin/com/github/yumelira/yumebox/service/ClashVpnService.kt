@@ -1,25 +1,6 @@
-/*
- * This file is part of YumeBox.
- *
- * YumeBox is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- * Copyright (c)  YumeLira 2025.
- *
- */
-
 package com.github.yumelira.yumebox.service
 
+import android.app.Notification
 import android.content.Context
 import android.content.Intent
 import android.net.ProxyInfo
@@ -27,30 +8,27 @@ import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
-import kotlinx.coroutines.*
-import org.koin.android.ext.android.inject
-import com.github.yumelira.yumebox.clash.config.ClashConfiguration
-import com.github.yumelira.yumebox.clash.config.VpnRouteConfig
+import com.github.yumelira.yumebox.clash.config.Configuration
+import com.github.yumelira.yumebox.clash.config.RouteConfig
 import com.github.yumelira.yumebox.clash.manager.ClashManager
 import com.github.yumelira.yumebox.core.Clash
 import com.github.yumelira.yumebox.data.model.AccessControlMode
 import com.github.yumelira.yumebox.data.store.AppSettingsStorage
 import com.github.yumelira.yumebox.data.store.NetworkSettingsStorage
 import com.github.yumelira.yumebox.data.store.ProfilesStore
-import com.github.yumelira.yumebox.service.delegate.ClashServiceDelegate
 import com.github.yumelira.yumebox.service.notification.ServiceNotificationManager
-import timber.log.Timber
+import kotlinx.coroutines.*
+import org.koin.android.ext.android.inject
 import java.net.InetSocketAddress
 import java.security.SecureRandom
 
 class ClashVpnService : VpnService() {
 
     companion object {
-        private const val TAG = "ClashVpnService"
         const val ACTION_START = "START"
         const val ACTION_STOP = "STOP"
-        private const val EXTRA_PROFILE_ID = "profile_id"
-        
+        const val EXTRA_PROFILE_ID = "profile_id"
+
         private val random = SecureRandom()
 
         fun start(context: Context, profileId: String) {
@@ -70,11 +48,6 @@ class ClashVpnService : VpnService() {
                 action = ACTION_STOP
             })
         }
-        
-        fun requestStop() {
-            Clash.stopHttp()
-            Clash.stopTun()
-        }
     }
 
     private val clashManager: ClashManager by inject()
@@ -82,12 +55,12 @@ class ClashVpnService : VpnService() {
     private val appSettingsStorage: AppSettingsStorage by inject()
     private val networkSettings: NetworkSettingsStorage by inject()
 
-    private val delegate by lazy {
-        ClashServiceDelegate(
-            this, clashManager, profilesStore, appSettingsStorage,
-            ServiceNotificationManager.VPN_CONFIG
-        )
+    private val notificationManager by lazy {
+        ServiceNotificationManager(this, ServiceNotificationManager.VPN_CONFIG)
     }
+
+    private var notificationJob: Job? = null
+    private var serviceScope: CoroutineScope? = null
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var tunFd: Int? = null
@@ -95,7 +68,7 @@ class ClashVpnService : VpnService() {
 
     override fun onCreate() {
         super.onCreate()
-        delegate.initialize()
+        notificationManager.createChannel()
     }
 
     override fun onBind(intent: Intent?): IBinder? = super.onBind(intent)
@@ -103,7 +76,7 @@ class ClashVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(
             ServiceNotificationManager.VPN_CONFIG.notificationId,
-            delegate.notificationManager.create("正在连接...", "正在建立连接", false)
+            notificationManager.create("正在连接...", "正在建立连接", false)
         )
 
         when (intent?.action) {
@@ -112,10 +85,10 @@ class ClashVpnService : VpnService() {
                 if (profileId != null) {
                     startVpn(profileId)
                 } else {
-                    Timber.tag(TAG).e("未提供配置文件 ID")
                     stopSelf()
                 }
             }
+
             ACTION_STOP -> stopVpn()
             else -> stopSelf()
         }
@@ -124,60 +97,83 @@ class ClashVpnService : VpnService() {
     }
 
     private fun startVpn(profileId: String) {
-        delegate.serviceScope.launch {
+        serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        serviceScope?.launch {
             try {
-                val startTime = System.currentTimeMillis()
 
-                val profile = delegate.loadProfileIfNeeded(
-                    profileId = profileId,
-                    willUseTunMode = true,
-                    quickStart = true
-                ).getOrElse { error ->
-                    Timber.tag(TAG).e("配置加载失败: ${error.message}")
-                    delegate.showErrorNotification("启动失败", error.message ?: "配置加载失败")
+                val profile = profilesStore.getAllProfiles().find { it.id == profileId }
+                if (profile == null) {
+                    showErrorNotification("启动失败", "配置文件不存在")
                     return@launch
                 }
-                
-                val loadTime = System.currentTimeMillis() - startTime
-                Timber.tag(TAG).d("配置加载完成: ${loadTime}ms")
+
+
+                val loadResult = clashManager.loadProfile(profile)
+                if (loadResult.isFailure) {
+                    val error = loadResult.exceptionOrNull()
+                    showErrorNotification("启动失败", error?.message ?: "配置加载失败")
+                    return@launch
+                }
 
                 vpnInterface = withContext(Dispatchers.IO) { establishVpnInterface() }
                     ?: run {
-                        Timber.tag(TAG).e("VPN 接口建立失败")
-                        delegate.showErrorNotification("启动失败", "无法建立 VPN 连接")
+                        showErrorNotification("启动失败", "无法建立 VPN 连接")
                         return@launch
                     }
 
                 val pfd = vpnInterface!!
                 val rawFd = pfd.detachFd()
-                tunFd = rawFd
 
                 runCatching { pfd.close() }
                 vpnInterface = null
 
-                val config = ClashConfiguration.TunConfig()
-                val tunDns = if (networkSettings.dnsHijack.value) config.dns else "0.0.0.0"
+                val config = Configuration.TunConfig()
                 val tunConfig = config.copy(
                     stack = networkSettings.tunStack.value.name.lowercase(),
-                    dns = tunDns,
                     dnsHijacking = networkSettings.dnsHijack.value
                 )
 
-                clashManager.startTunMode(
+                clashManager.startTun(
                     fd = rawFd,
                     config = tunConfig,
+                    enableIPv6 = networkSettings.enableIPv6.value,
                     markSocket = { protect(it) }
                 )
 
-                val totalTime = System.currentTimeMillis() - startTime
-                Timber.tag(TAG).d("VPN 启动完成: ${totalTime}ms")
-                
-                delegate.startNotificationUpdate()
+                startNotificationUpdate()
             } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "VPN 启动失败")
-                delegate.showErrorNotification("启动失败", e.message ?: "未知错误")
+                showErrorNotification("启动失败", e.message ?: "未知错误")
             }
         }
+    }
+
+    private fun startNotificationUpdate() {
+        notificationJob?.cancel()
+        notificationJob = notificationManager.startTrafficUpdate(
+            serviceScope!!, clashManager, appSettingsStorage
+        )
+    }
+
+    private fun stopNotificationUpdate() {
+        notificationJob?.cancel()
+        notificationJob = null
+    }
+
+    private fun buildErrorNotification(title: String, content: String): Notification {
+        return notificationManager.create(title, content, false)
+    }
+
+    private fun showNotificationAndStopService(notification: Notification, notificationId: Int) {
+        startForeground(notificationId, notification)
+        serviceScope?.launch {
+            delay(3000)
+            stopSelf()
+        }
+    }
+
+    private fun showErrorNotification(title: String, content: String) {
+        val notification = buildErrorNotification(title, content)
+        showNotificationAndStopService(notification, ServiceNotificationManager.VPN_CONFIG.notificationId)
     }
 
     private fun listenHttp(): InetSocketAddress? {
@@ -186,7 +182,7 @@ class ClashVpnService : VpnService() {
         val address = Clash.startHttp(listenAt)
         return address?.let { parseInetSocketAddress(it) }
     }
-    
+
     private fun parseInetSocketAddress(address: String): InetSocketAddress {
         val lastColon = address.lastIndexOf(':')
         val host = address.substring(0, lastColon)
@@ -195,7 +191,7 @@ class ClashVpnService : VpnService() {
     }
 
     private fun establishVpnInterface(): ParcelFileDescriptor? = runCatching {
-        val config = ClashConfiguration.TunConfig()
+        val config = Configuration.TunConfig()
         Builder().apply {
             setSession("YumeBox VPN")
             setMtu(config.mtu)
@@ -203,22 +199,22 @@ class ClashVpnService : VpnService() {
             addAddress(config.gateway, 30)
 
             if (networkSettings.enableIPv6.value) {
-                addAddress(VpnRouteConfig.TUN_GATEWAY6, VpnRouteConfig.TUN_SUBNET_PREFIX6)
+                addAddress(RouteConfig.TUN_GATEWAY6, RouteConfig.TUN_SUBNET_PREFIX6)
             }
 
             if (networkSettings.bypassPrivateNetwork.value) {
-                VpnRouteConfig.BYPASS_PRIVATE_ROUTES.forEach { cidr ->
-                    val (addr, prefix) = VpnRouteConfig.parseCidr(cidr)
+                RouteConfig.BYPASS_PRIVATE_ROUTES.forEach { cidr ->
+                    val (addr, prefix) = RouteConfig.parseCidr(cidr)
                     addRoute(addr, prefix)
                 }
                 if (networkSettings.enableIPv6.value) {
-                    VpnRouteConfig.BYPASS_PRIVATE_ROUTES_V6.forEach { cidr ->
-                        val (addr, prefix) = VpnRouteConfig.parseCidr(cidr)
+                    RouteConfig.BYPASS_PRIVATE_ROUTES_V6.forEach { cidr ->
+                        val (addr, prefix) = RouteConfig.parseCidr(cidr)
                         addRoute(addr, prefix)
                     }
                 }
                 addRoute(config.dns, 32)
-                if (networkSettings.enableIPv6.value) addRoute(VpnRouteConfig.TUN_DNS6, 128)
+                if (networkSettings.enableIPv6.value) addRoute(RouteConfig.TUN_DNS6, 128)
             } else {
                 addRoute("0.0.0.0", 0)
                 if (networkSettings.enableIPv6.value) addRoute("::", 0)
@@ -226,29 +222,30 @@ class ClashVpnService : VpnService() {
 
             val accessControlPackages = networkSettings.accessControlPackages.value
             when (networkSettings.accessControlMode.value) {
-                AccessControlMode.allow_all -> {}
-                AccessControlMode.allow_selected -> {
+                AccessControlMode.ALLOW_ALL -> {}
+                AccessControlMode.ALLOW_SPECIFIC -> {
                     (accessControlPackages + packageName).forEach { runCatching { addAllowedApplication(it) } }
                 }
-                AccessControlMode.reject_selected -> {
+
+                AccessControlMode.DENY_SPECIFIC -> {
                     (accessControlPackages - packageName).forEach { runCatching { addDisallowedApplication(it) } }
                 }
             }
 
             addDnsServer(config.dns)
-            if (networkSettings.enableIPv6.value) addDnsServer(VpnRouteConfig.TUN_DNS6)
+            if (networkSettings.enableIPv6.value) addDnsServer(RouteConfig.TUN_DNS6)
             if (networkSettings.allowBypass.value) allowBypass()
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 setMetered(false)
-                
+
                 if (networkSettings.systemProxy.value) {
                     listenHttp()?.let { addr ->
                         httpProxyAddress = addr
                         val exclusionList = if (networkSettings.bypassPrivateNetwork.value) {
-                            VpnRouteConfig.HTTP_PROXY_LOCAL_LIST + VpnRouteConfig.HTTP_PROXY_BLACK_LIST
+                            RouteConfig.HTTP_PROXY_LOCAL_LIST + RouteConfig.HTTP_PROXY_BLACK_LIST
                         } else {
-                            VpnRouteConfig.HTTP_PROXY_BLACK_LIST
+                            RouteConfig.HTTP_PROXY_BLACK_LIST
                         }
                         setHttpProxy(
                             ProxyInfo.buildDirectProxy(
@@ -257,7 +254,6 @@ class ClashVpnService : VpnService() {
                                 exclusionList
                             )
                         )
-                        Timber.tag(TAG).d("系统代理已启动: ${addr.address.hostAddress}:${addr.port}")
                     }
                 }
             }
@@ -265,22 +261,24 @@ class ClashVpnService : VpnService() {
     }.getOrNull()
 
     private fun stopVpn() {
-        delegate.stopNotificationUpdate()
-
-        Clash.stopHttp()
-        httpProxyAddress = null
+        stopNotificationUpdate()
 
         clashManager.stop()
-        tunFd = null
+
         vpnInterface?.close()
         vpnInterface = null
+        tunFd = null
+
+        httpProxyAddress = null
+
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     override fun onDestroy() {
+        serviceScope?.cancel()
+        serviceScope = null
         stopVpn()
-        delegate.cleanup()
         super.onDestroy()
     }
 }

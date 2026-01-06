@@ -21,19 +21,19 @@
 package com.github.yumelira.yumebox.common.util
 
 object ByteFormatter {
-    
+
     private const val KB = 1024L
     private const val MB = KB * 1024
     private const val GB = MB * 1024
     private const val TB = GB * 1024
     private const val PB = TB * 1024
-    
+
     private const val KB_D = 1024.0
     private const val MB_D = KB_D * 1024
     private const val GB_D = MB_D * 1024
     private const val TB_D = GB_D * 1024
     private const val PB_D = TB_D * 1024
-    
+
     @JvmStatic
     fun format(bytes: Long, decimals: Int? = null): String {
         val value = bytes.coerceAtLeast(0L)
@@ -46,7 +46,7 @@ object ByteFormatter {
             else -> formatValue(value / PB_D, "PB", decimals ?: 2)
         }
     }
-    
+
     @JvmStatic
     fun formatSpeed(bytesPerSecond: Long): String {
         val value = bytesPerSecond.coerceAtLeast(0L)
@@ -57,7 +57,7 @@ object ByteFormatter {
             else -> formatValue(value / GB_D, "GB/s", 2)
         }
     }
-    
+
     @JvmStatic
     fun formatForDisplay(bytes: Long, isSpeed: Boolean = false): Pair<String, String> {
         val value = bytes.coerceAtLeast(0L)
@@ -68,21 +68,21 @@ object ByteFormatter {
                 val num = value / KB_D
                 Pair(if (num < 10) "%.1f".format(num) else "%.0f".format(num), "KB$suffix")
             }
+
             value < GB -> {
                 val num = value / MB_D
                 Pair(if (num < 10) "%.1f".format(num) else "%.0f".format(num), "MB$suffix")
             }
+
             else -> Pair("%.2f".format(value / GB_D), "GB$suffix")
         }
     }
-    
+
     private fun formatValue(value: Double, unit: String, decimals: Int): String {
         return "%.${decimals}f $unit".format(value)
     }
 }
 
 fun formatBytes(bytes: Long): String = ByteFormatter.format(bytes)
-fun formatFileSize(bytes: Long): String = ByteFormatter.format(bytes)
-fun formatTotal(bytes: Long): String = ByteFormatter.format(bytes)
 fun formatSpeed(bytesPerSecond: Long): String = ByteFormatter.formatSpeed(bytesPerSecond)
 fun formatBytesForDisplay(bytes: Long): Pair<String, String> = ByteFormatter.formatForDisplay(bytes, isSpeed = true)

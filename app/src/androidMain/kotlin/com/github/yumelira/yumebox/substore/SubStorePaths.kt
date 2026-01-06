@@ -20,8 +20,8 @@
 
 package com.github.yumelira.yumebox.substore
 
-import java.io.File
 import com.github.yumelira.yumebox.App
+import java.io.File
 
 object SubStorePaths {
 
@@ -60,9 +60,9 @@ object SubStorePaths {
     fun isBackendReady(): Boolean = backendBundle.exists()
 
     fun isFrontendReady(): Boolean {
-        return frontendDir.exists() && 
-               frontendDir.isDirectory && 
-               (frontendDir.listFiles()?.isNotEmpty() == true)
+        return frontendDir.exists() &&
+                frontendDir.isDirectory &&
+                (frontendDir.listFiles()?.isNotEmpty() == true)
     }
 
     fun isResourcesReady(): Boolean = isBackendReady() && isFrontendReady()

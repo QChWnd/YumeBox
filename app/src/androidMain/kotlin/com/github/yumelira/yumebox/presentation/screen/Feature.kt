@@ -25,25 +25,20 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
+import com.github.yumelira.yumebox.common.util.openUrl
+import com.github.yumelira.yumebox.data.model.AutoCloseMode
+import com.github.yumelira.yumebox.presentation.component.*
+import com.github.yumelira.yumebox.presentation.viewmodel.FeatureViewModel
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import dev.oom_wg.purejoy.mlang.MLang
 import org.koin.androidx.compose.koinViewModel
-import com.github.yumelira.yumebox.presentation.component.Card
-import com.github.yumelira.yumebox.presentation.component.EnumSelector
-import com.github.yumelira.yumebox.presentation.component.ScreenLazyColumn
-import com.github.yumelira.yumebox.presentation.component.SmallTitle
-import com.github.yumelira.yumebox.presentation.component.TopBar
-import com.github.yumelira.yumebox.presentation.viewmodel.FeatureViewModel
-import com.github.yumelira.yumebox.data.model.AutoCloseMode
-import com.github.yumelira.yumebox.common.util.openUrl
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.extra.SuperArrow
 import top.yukonga.miuix.kmp.extra.SuperDropdown
 import top.yukonga.miuix.kmp.extra.SuperSwitch
-import dev.oom_wg.purejoy.mlang.MLang
-
 
 @Composable
 fun formatDownloadSpeed(speed: String): String {
@@ -103,7 +98,7 @@ fun FeatureScreen(
         ) {
             item {
                 val canStartService = isExtensionInstalled && isSubStoreInitialized
-                val statusSummary = when {
+                when {
                     isServiceRunning -> MLang.Feature.ServiceStatus.Running.format(frontendUrl)
                     !isExtensionInstalled -> MLang.Feature.ServiceStatus.NeedExtension
                     !isSubStoreInitialized -> MLang.Feature.ServiceStatus.NeedSubStore
@@ -146,7 +141,8 @@ fun FeatureScreen(
                     } else {
                         false
                     }
-                val statusText = if (isPanelInstalled) MLang.Feature.Panel.Installed else MLang.Feature.Panel.NotInstalled
+                val statusText =
+                    if (isPanelInstalled) MLang.Feature.Panel.Installed else MLang.Feature.Panel.NotInstalled
                 val currentPanelName =
                     if (selectedPanelType < panelDisplayNames.size) {
                         panelDisplayNames[selectedPanelType]
@@ -154,7 +150,8 @@ fun FeatureScreen(
                         MLang.Feature.Panel.Unknown
                     }
 
-                val downloadButtonText = if (isPanelInstalled) MLang.Feature.Panel.Redownload else MLang.Feature.Panel.Download
+                val downloadButtonText =
+                    if (isPanelInstalled) MLang.Feature.Panel.Redownload else MLang.Feature.Panel.Download
 
                 SmallTitle(MLang.Feature.Panel.Section)
                 Card {
@@ -173,7 +170,8 @@ fun FeatureScreen(
                         summary = if (isDownloadingPanel) {
                             MLang.Feature.Panel.Downloading
                         } else {
-                            val status = if (isPanelInstalled) MLang.Feature.Panel.WillOverwrite else MLang.Feature.Panel.NotInstalledHint
+                            val status =
+                                if (isPanelInstalled) MLang.Feature.Panel.WillOverwrite else MLang.Feature.Panel.NotInstalledHint
                             "$currentPanelName $status"
                         },
                         onClick = {
@@ -197,7 +195,7 @@ fun FeatureScreen(
                         },
                         onClick = {
                             if (!isExtensionInstalled) {
-                                openUrl(context, "https://github.com/YumeYuka/YumeBox/releases/tag/Expand")
+                                openUrl(context, "https://github.com/YumeLira/YumeBox/releases/tag/Expand")
                             } else {
                                 viewModel.refreshExtensionStatus()
                             }

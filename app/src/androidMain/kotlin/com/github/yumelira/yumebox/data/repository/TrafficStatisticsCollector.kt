@@ -20,9 +20,9 @@
 
 package com.github.yumelira.yumebox.data.repository
 
-import kotlinx.coroutines.*
 import com.github.yumelira.yumebox.clash.manager.ClashManager
 import com.github.yumelira.yumebox.data.store.TrafficStatisticsStore
+import kotlinx.coroutines.*
 import timber.log.Timber
 
 class TrafficStatisticsCollector(
@@ -64,13 +64,12 @@ class TrafficStatisticsCollector(
             lastProfileId = trafficStatisticsStore.getLastProfileId()
 
             while (isActive && clashManager.isRunning.value) {
-                try {
+                runCatching {
                     collectTrafficData()
                     delay(COLLECTION_INTERVAL_MS)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Timber.tag(TAG).e(e, "流量数据收集失败")
+                }.onFailure { e ->
+                    if (e is CancellationException) throw e
+                    Timber.tag("TrafficStatisticsCollec").e(e, "流量数据收集失败")
                     delay(COLLECTION_INTERVAL_MS)
                 }
             }
@@ -94,7 +93,6 @@ class TrafficStatisticsCollector(
         }
 
         if (currentProfileId != lastProfileId) {
-            Timber.tag(TAG).d("检测到配置切换: $lastProfileId -> $currentProfileId")
             lastTotalUpload = currentUpload
             lastTotalDownload = currentDownload
             lastProfileId = currentProfileId
@@ -103,7 +101,6 @@ class TrafficStatisticsCollector(
         }
 
         if (currentUpload < lastTotalUpload || currentDownload < lastTotalDownload) {
-            Timber.tag(TAG).d("检测到代理重启，重置计数器")
             lastTotalUpload = currentUpload
             lastTotalDownload = currentDownload
             trafficStatisticsStore.setLastTraffic(currentUpload, currentDownload, currentProfileId)
@@ -115,12 +112,13 @@ class TrafficStatisticsCollector(
 
         if (uploadDelta > 0 || downloadDelta > 0) {
             trafficStatisticsStore.recordTraffic(
-                uploadDelta, 
+                uploadDelta,
                 downloadDelta,
                 currentProfileId,
                 currentProfileName
             )
-            Timber.tag(TAG).v("记录流量: 上传=$uploadDelta, 下载=$downloadDelta, 配置=$currentProfileName")
+            Timber.tag("TrafficStatisticsCollec")
+                .v("记录流量: 上传=$uploadDelta, 下载=$downloadDelta, 配置=$currentProfileName")
         }
 
         lastTotalUpload = currentUpload

@@ -261,5 +261,5 @@ fun Preference<Boolean>.toggle() = set(!value)
 
 fun <T> Preference<List<T>>.add(item: T) = set(value + item)
 fun <T> Preference<List<T>>.remove(predicate: (T) -> Boolean) = set(value.filterNot(predicate))
-fun <T> Preference<List<T>>.update(predicate: (T) -> Boolean, transform: (T) -> T) = 
+fun <T> Preference<List<T>>.update(predicate: (T) -> Boolean, transform: (T) -> T) =
     set(value.map { if (predicate(it)) transform(it) else it })

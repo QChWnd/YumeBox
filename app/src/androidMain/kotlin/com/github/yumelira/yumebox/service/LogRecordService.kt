@@ -20,33 +20,22 @@
 
 package com.github.yumelira.yumebox.service
 
-import android.R
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.app.Service
+import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import org.koin.android.ext.android.inject
 import com.github.yumelira.yumebox.MainActivity
 import com.github.yumelira.yumebox.clash.manager.ClashManager
+import kotlinx.coroutines.*
+import org.koin.android.ext.android.inject
 import timber.log.Timber
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 class LogRecordService : Service() {
 
@@ -55,10 +44,10 @@ class LogRecordService : Service() {
         private const val NOTIFICATION_ID = 2001
         private const val CHANNEL_ID = "log_record_channel"
         private const val CHANNEL_NAME = "日志记录"
-        
+
         private const val ACTION_START = "com.github.yumelira.yumebox.LOG_START"
         private const val ACTION_STOP = "com.github.yumelira.yumebox.LOG_STOP"
-        
+
         const val LOG_DIR = "logs"
         const val LOG_PREFIX = ""
         const val LOG_SUFFIX = ".log"
@@ -96,7 +85,7 @@ class LogRecordService : Service() {
 
     private val clashManager: ClashManager by inject()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    
+
     private var logWriter: BufferedWriter? = null
     private var logCollectJob: Job? = null
     private var logFile: File? = null
@@ -106,7 +95,6 @@ class LogRecordService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Timber.tag(TAG).d("日志记录服务创建")
         createNotificationChannel()
     }
 
@@ -119,7 +107,6 @@ class LogRecordService : Service() {
     }
 
     override fun onDestroy() {
-        Timber.tag(TAG).d("日志记录服务销毁")
         closeLogWriter()
         serviceScope.cancel()
         isRecording = false
@@ -128,41 +115,34 @@ class LogRecordService : Service() {
     }
 
     private fun startRecording() {
-        if (isRecording) {
-            Timber.tag(TAG).d("日志记录已在进行中")
-            return
-        }
+        if (isRecording) return
 
-        try {
+        runCatching {
             val logDir = getLogDir(applicationContext)
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val fileName = "$LOG_PREFIX$timestamp$LOG_SUFFIX"
             logFile = File(logDir, fileName)
             logWriter = BufferedWriter(FileWriter(logFile, true))
-            
+
             currentLogFileName = fileName
             isRecording = true
 
             startForeground(NOTIFICATION_ID, createNotification())
 
-            Timber.tag(TAG).d("日志记录已开始: $fileName")
-
             logCollectJob = serviceScope.launch {
-                Timber.tag(TAG).d("开始订阅日志流")
                 clashManager.logs.collect { log ->
                     if (isRecording) {
-                        try {
+                        runCatching {
                             val line = "[${dateFormat.format(log.time)}] [${log.level.name}] ${log.message}\n"
                             logWriter?.write(line)
                             logWriter?.flush()
-                        } catch (e: Exception) {
+                        }.onFailure { e ->
                             Timber.tag(TAG).e(e, "写入日志失败")
                         }
                     }
                 }
             }
-
-        } catch (e: Exception) {
+        }.onFailure { e ->
             Timber.tag(TAG).e(e, "启动日志记录失败")
             isRecording = false
             currentLogFileName = null
@@ -171,26 +151,24 @@ class LogRecordService : Service() {
     }
 
     private fun stopRecording() {
-        Timber.tag(TAG).d("停止日志记录")
-        
         logCollectJob?.cancel()
         logCollectJob = null
         closeLogWriter()
-        
+
         isRecording = false
         currentLogFileName = null
-        
+
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     private fun closeLogWriter() {
-        try {
+        runCatching {
             logWriter?.flush()
             logWriter?.close()
             logWriter = null
             logFile = null
-        } catch (e: Exception) {
+        }.onFailure { e ->
             Timber.tag(TAG).e(e, "关闭日志写入器失败")
         }
     }

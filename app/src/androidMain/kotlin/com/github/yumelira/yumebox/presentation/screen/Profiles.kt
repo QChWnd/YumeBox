@@ -1,28 +1,7 @@
-/*
- * This file is part of YumeBox.
- *
- * YumeBox is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- * Copyright (c)  YumeLira 2025.
- *
- */
-
 package com.github.yumelira.yumebox.presentation.screen
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -39,18 +18,14 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextAlign
@@ -68,45 +43,47 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.github.yumelira.yumebox.App
+import com.github.yumelira.yumebox.MainActivity
+import com.github.yumelira.yumebox.common.util.toast
+import com.github.yumelira.yumebox.data.model.Profile
+import com.github.yumelira.yumebox.data.model.ProfileType
+import com.github.yumelira.yumebox.data.store.LinkOpenMode
+import com.github.yumelira.yumebox.data.store.ProfileLink
+import com.github.yumelira.yumebox.presentation.component.*
+import com.github.yumelira.yumebox.presentation.icon.Yume
+import com.github.yumelira.yumebox.presentation.icon.yume.*
+import com.github.yumelira.yumebox.presentation.theme.LocalSpacing
+import com.github.yumelira.yumebox.presentation.viewmodel.HomeViewModel
+import com.github.yumelira.yumebox.presentation.viewmodel.ProfilesViewModel
+import com.github.yumelira.yumebox.presentation.webview.WebViewActivity
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import dev.oom_wg.purejoy.mlang.MLang
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.koin.androidx.compose.koinViewModel
-import com.github.yumelira.yumebox.data.model.Profile
-import com.github.yumelira.yumebox.data.model.ProfileType
-import com.github.yumelira.yumebox.presentation.component.*
-import com.github.yumelira.yumebox.presentation.icon.Yume
-import com.github.yumelira.yumebox.presentation.icon.yume.`Package-check`
-import com.github.yumelira.yumebox.presentation.theme.LocalSpacing
-import com.github.yumelira.yumebox.presentation.viewmodel.HomeViewModel
-import com.github.yumelira.yumebox.presentation.viewmodel.ProfilesViewModel
-import dev.oom_wg.purejoy.mlang.MLang
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import top.yukonga.miuix.kmp.basic.*
-import top.yukonga.miuix.kmp.extra.SpinnerEntry
-import top.yukonga.miuix.kmp.extra.SuperBottomSheet
-import top.yukonga.miuix.kmp.extra.SuperDialog
-import top.yukonga.miuix.kmp.extra.SuperSpinner
+import top.yukonga.miuix.kmp.extra.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.icons.useful.New
-import top.yukonga.miuix.kmp.icon.icons.useful.Refresh
+import top.yukonga.miuix.kmp.icon.icons.useful.Delete
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import java.io.File
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
-import com.github.yumelira.yumebox.MainActivity
-import kotlinx.coroutines.suspendCancellableCoroutine
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.min
 
+@SuppressLint("UseKtx")
 @Composable
 fun ProfilesPager(mainInnerPadding: PaddingValues) {
     val profilesViewModel = koinViewModel<ProfilesViewModel>()
@@ -115,8 +92,12 @@ fun ProfilesPager(mainInnerPadding: PaddingValues) {
     val isRunning by homeViewModel.isRunning.collectAsState()
 
     val showAddBottomSheet = remember { mutableStateOf(false) }
+    val showLinkSettingsDialog = remember { mutableStateOf(false) }
+    val showAddLinkDialog = remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf<Profile?>(null) }
-    var showEditDialog by remember { mutableStateOf(false) }
+    val showEditDialog = remember { mutableStateOf(false) }
+    val showShareDialog = remember { mutableStateOf(false) }
+    var profileToShare by remember { mutableStateOf<Profile?>(null) }
     var pendingProfileId by remember { mutableStateOf<String?>(null) }
     var profileToEdit by remember { mutableStateOf<Profile?>(null) }
     var isDownloading by remember { mutableStateOf(false) }
@@ -126,6 +107,13 @@ fun ProfilesPager(mainInnerPadding: PaddingValues) {
     val pendingImportUrl by MainActivity.pendingImportUrl.collectAsState()
 
     var scannedUrl by remember { mutableStateOf<String?>(null) }
+
+    val links by profilesViewModel.links.state.collectAsState()
+    val linkOpenMode by profilesViewModel.linkOpenMode.state.collectAsState()
+    val defaultLinkId by profilesViewModel.defaultLinkId.state.collectAsState()
+    var linkToEdit by remember { mutableStateOf<ProfileLink?>(null) }
+    var newLinkName by remember { mutableStateOf("") }
+    var newLinkUrl by remember { mutableStateOf("") }
 
     LaunchedEffect(pendingImportUrl) {
         if (pendingImportUrl != null) {
@@ -152,134 +140,149 @@ fun ProfilesPager(mainInnerPadding: PaddingValues) {
 
     Scaffold(
         topBar = {
-            TopBar(
-                title = MLang.ProfilesPage.Title, scrollBehavior = scrollBehavior, actions = {
+            TopBar(title = MLang.ProfilesPage.Title, scrollBehavior = scrollBehavior, navigationIcon = {
+                Row {
                     IconButton(
-                        onClick = {
-                            if (!isDownloading) {
-                                isDownloading = true
-                                scope.launch {
-                                    profiles.filter { it.type == ProfileType.URL }.forEach { p ->
-                                        try {
-                                            profilesViewModel.downloadProfile(p)
-                                        } catch (_: Exception) {
-                                        }
-                                    }
-                                    isDownloading = false
+                        modifier = Modifier.padding(start = 24.dp), onClick = {
+                            if (links.isNotEmpty()) {
+                                // 优先使用默认链接,如果没有设置默认链接则使用第一个
+                                val link = if (defaultLinkId.isNotEmpty()) {
+                                    links.find { it.id == defaultLinkId } ?: links.first()
+                                } else {
+                                    links.first()
                                 }
+                                val context = com.github.yumelira.yumebox.App.instance
+                                if (linkOpenMode == LinkOpenMode.IN_APP) {
+                                    WebViewActivity.start(context, link.url)
+                                } else {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    context.startActivity(intent)
+                                }
+                            } else {
+                                showLinkSettingsDialog.value = true
                             }
-                        },
-                        modifier = Modifier.padding(end = 12.dp)
-                    ) {
-                        Icon(
-                            MiuixIcons.Useful.Refresh,
-                            contentDescription = MLang.ProfilesPage.Action.UpdateAll
-                        )
+                        }) {
+                        Icon(imageVector = Yume.Chromium, contentDescription = MLang.ProfilesPage.Misc.OpenLink)
                     }
-
                     IconButton(
-                        onClick = {
-                            profileToEdit = null
-                            showAddBottomSheet.value = true
-                        },
-                        modifier = Modifier.padding(end = LocalSpacing.current.xxl)
-                    ) {
-                        Icon(
-                            MiuixIcons.Useful.New,
-                            contentDescription = MLang.ProfilesPage.Action.AddProfile
-                        )
+                        modifier = Modifier.padding(start = 12.dp), onClick = { showLinkSettingsDialog.value = true }) {
+                        Icon(imageVector = Yume.`Link-2`, contentDescription = MLang.ProfilesPage.LinkSettings.Title)
                     }
-                })
+                }
+            }, actions = {
+                IconButton(
+                    onClick = {
+                        if (!isDownloading) {
+                            isDownloading = true
+                            scope.launch {
+                                profiles.filter { it.type == ProfileType.URL }.forEach { p ->
+                                    try {
+                                        profilesViewModel.downloadProfile(p)
+                                    } catch (_: Exception) {
+                                    }
+                                }
+                                isDownloading = false
+                            }
+                        }
+                    }, modifier = Modifier.padding(end = 12.dp)
+                ) {
+                    Icon(
+                        Yume.`Circle-fading-arrow-up`, contentDescription = MLang.ProfilesPage.Action.UpdateAll
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        profileToEdit = null
+                        showAddBottomSheet.value = true
+                    }, modifier = Modifier.padding(end = LocalSpacing.current.xxl)
+                ) {
+                    Icon(
+                        Yume.`Badge-plus`, contentDescription = MLang.ProfilesPage.Action.AddProfile
+                    )
+                }
+            })
         },
     ) { innerPadding ->
         if (profiles.isEmpty()) {
 
             CenteredText(
-                firstLine = MLang.ProfilesPage.Empty.NoProfiles,
-                secondLine = MLang.ProfilesPage.Empty.Hint
+                firstLine = MLang.ProfilesPage.Empty.NoProfiles, secondLine = MLang.ProfilesPage.Empty.Hint
             )
         } else {
+            val lazyListState = rememberLazyListState()
+            val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
+                profilesViewModel.reorderProfiles(from.index, to.index)
+            }
 
-            ScreenLazyColumn(
-                scrollBehavior = scrollBehavior,
-                innerPadding = combinePaddingValues(innerPadding, mainInnerPadding),
-                topPadding = 20.dp,
-                enableBottomBarAutoHide = true,
+            val bottomBarScrollBehavior = LocalBottomBarScrollBehavior.current
+
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier.fillMaxSize().scrollEndHaptic().overScrollVertical()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection).let { mod ->
+                        if (bottomBarScrollBehavior != null) {
+                            mod.nestedScroll(bottomBarScrollBehavior.nestedScrollConnection)
+                        } else mod
+                    },
+                contentPadding = PaddingValues(
+                    top = innerPadding.calculateTopPadding() + 20.dp,
+                    bottom = innerPadding.calculateBottomPadding() + mainInnerPadding.calculateBottomPadding() + LocalSpacing.current.md,
+                ),
+                overscrollEffect = null,
             ) {
-                items(profiles.size) { index ->
-                    val profile = profiles[index]
+                items(profiles.size, key = { profiles[it].id }) { index ->
+                    ReorderableItem(reorderableLazyListState, key = profiles[index].id) { isDragging ->
+                        val profile = profiles[index]
 
-
-                    ProfileCard(
-                        profile = profile,
-                        isDownloading = isDownloading,
-                        onExport = { profile ->
-                            if (!isDownloading) {
-                                val context = App.instance
-                                val importedDir = File(context.filesDir, "imported")
-                                val profileDir = File(importedDir, profile.id)
-                                val file = File(profileDir, "config.yaml")
-                                if (file.exists()) {
-                                    try {
-                                        val uri = FileProvider.getUriForFile(
-                                            context,
-                                            "${context.packageName}.fileprovider",
-                                            file
-                                        )
-                                        val intent = Intent(Intent.ACTION_SEND).apply {
-                                            type = "text/plain"
-                                            putExtra(Intent.EXTRA_STREAM, uri)
-                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        }
-                                        context.startActivity(
-                                            Intent.createChooser(
-                                                intent,
-                                                MLang.ProfilesPage.Action.ExportConfig
-                                            ).apply {
-                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                            })
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
+                        ProfileCard(
+                            profile = profile,
+                            workDir = File(com.github.yumelira.yumebox.App.instance.filesDir, "clash"),
+                            isDownloading = isDownloading,
+                            modifier = Modifier
+                                .longPressDraggableHandle()
+                                .alpha(if (isDragging) 0.9f else 1f),
+                            onExport = { profile ->
+                                if (!isDownloading) {
+                                    profileToShare = profile
+                                    showShareDialog.value = true
+                                }
+                            },
+                            onUpdate = { profile ->
+                                if (!isDownloading) {
+                                    isDownloading = true
+                                    scope.launch {
+                                        profilesViewModel.downloadProfile(profile)
+                                        isDownloading = false
                                     }
                                 }
-                            }
-                        },
-                        onUpdate = { profile ->
-                            if (!isDownloading) {
-                                isDownloading = true
-                                scope.launch {
-                                    profilesViewModel.downloadProfile(profile)
-                                    isDownloading = false
+                            },
+                            onDelete = { profile -> if (!isDownloading) showDeleteDialog = profile },
+                            onEdit = { profile ->
+                                if (!isDownloading) {
+                                    profileToEdit = profile
+                                    editName = profile.name
+                                    showEditDialog.value = true
                                 }
-                            }
-                        },
-                        onDelete = { profile -> if (!isDownloading) showDeleteDialog = profile },
-                        onEdit = { profile ->
-                            if (!isDownloading) {
-                                profileToEdit = profile
-                                editName = profile.name
-                                showEditDialog = true
-                            }
-                        },
-                        onToggleEnabled = { updatedProfile ->
-                            if (!isDownloading) {
-                                scope.launch {
-                                    profilesViewModel.toggleProfileEnabled(
-                                        profile = updatedProfile,
-                                        enabled = updatedProfile.enabled,
-                                        onProfileEnabled = { enabledProfile ->
-                                            if (isRunning) {
-                                                scope.launch {
-                                                    homeViewModel.reloadProfile(enabledProfile.id)
+                            },
+                            onToggleEnabled = { updatedProfile ->
+                                if (!isDownloading) {
+                                    scope.launch {
+                                        profilesViewModel.toggleProfileEnabled(
+                                            profile = updatedProfile,
+                                            enabled = updatedProfile.enabled,
+                                            onProfileEnabled = { enabledProfile ->
+                                                if (isRunning) {
+                                                    scope.launch {
+                                                        homeViewModel.reloadProfile(enabledProfile.id)
+                                                    }
                                                 }
-                                            }
-                                        }
-                                    )
+                                            })
+                                    }
                                 }
-                            }
-                        }
-                    )
+                            })
+                    }
                 }
             }
         }
@@ -298,10 +301,9 @@ fun ProfilesPager(mainInnerPadding: PaddingValues) {
             profilesViewModel.updateProfile(profile)
         },
         onDownloadComplete = {
+            isDownloading = false
             showAddBottomSheet.value = false
             profilesViewModel.clearDownloadProgress()
-            importUrlFromScheme = null
-            scannedUrl = null
         },
         profilesViewModel = profilesViewModel
     )
@@ -314,43 +316,147 @@ fun ProfilesPager(mainInnerPadding: PaddingValues) {
     }
 
     val currentProfileToEdit = profileToEdit
-    if (showEditDialog && currentProfileToEdit != null) {
-        EditProfileNameDialog(
-            show = remember { mutableStateOf(true) },
-            currentName = currentProfileToEdit.name,
-            onDismiss = {
-                showEditDialog = false
-                profileToEdit = null
+    if (showEditDialog.value && currentProfileToEdit != null) {
+        EditProfileNameDialog(show = showEditDialog, currentName = currentProfileToEdit.name, onDismiss = {
+            showEditDialog.value = false
+            profileToEdit = null
+        }, onConfirm = { newName ->
+            if (newName.isNotBlank()) {
+                val updatedProfile = currentProfileToEdit.copy(
+                    name = newName, updatedAt = System.currentTimeMillis()
+                )
+                profilesViewModel.updateProfile(updatedProfile)
+                showEditDialog.value = false
+            }
+        })
+    }
+
+    if (showLinkSettingsDialog.value) {
+        LinkSettingsDialog(
+            show = showLinkSettingsDialog,
+            links = links,
+            linkOpenMode = linkOpenMode,
+            defaultLinkId = defaultLinkId,
+            onOpenModeChange = { mode ->
+                profilesViewModel.setOpenMode(mode)
             },
-            onConfirm = { newName ->
-                if (newName.isNotBlank()) {
-                    val updatedProfile = currentProfileToEdit.copy(
-                        name = newName,
-                        updatedAt = System.currentTimeMillis()
+            onDefaultLinkChange = { linkId ->
+                profilesViewModel.setDefaultLink(linkId)
+            },
+            onAddLink = {
+                linkToEdit = null
+                showAddLinkDialog.value = true
+            },
+            onDeleteLink = { linkId ->
+                profilesViewModel.removeLink(linkId)
+            },
+            onOpenLink = { link ->
+                val context = com.github.yumelira.yumebox.App.instance
+                if (linkOpenMode == LinkOpenMode.IN_APP) {
+                    WebViewActivity.start(context, link.url)
+                } else {
+                    val intent = Intent(Intent.ACTION_VIEW, link.url.toUri())
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                }
+            })
+    }
+
+    if (showAddLinkDialog.value) {
+        val currentLinkToEdit = linkToEdit
+        AddLinkDialog(
+            show = showAddLinkDialog,
+            linkToEdit = currentLinkToEdit,
+            linkName = newLinkName,
+            onNameChange = { newLinkName = it },
+            linkUrl = newLinkUrl,
+            onUrlChange = { newLinkUrl = it },
+            onDismiss = {
+                showAddLinkDialog.value = false
+                linkToEdit = null
+                newLinkName = ""
+                newLinkUrl = ""
+            },
+            onConfirm = {
+                if (currentLinkToEdit != null) {
+                    profilesViewModel.updateLink(currentLinkToEdit.id, newLinkName, newLinkUrl)
+                } else {
+                    val newLink = ProfileLink(
+                        id = UUID.randomUUID().toString(), name = newLinkName, url = newLinkUrl
                     )
-                    profilesViewModel.updateProfile(updatedProfile)
-                    showEditDialog = false
-                    profileToEdit = null
+                    profilesViewModel.addLink(newLink)
+                }
+                showAddLinkDialog.value = false
+                linkToEdit = null
+                newLinkName = ""
+                newLinkUrl = ""
+            })
+    }
+
+    if (showShareDialog.value && profileToShare != null) {
+        ShareOptionsDialog(show = showShareDialog, profile = profileToShare!!, onDismiss = {
+            showShareDialog.value = false
+            profileToShare = null
+        }, onShareFile = { profile ->
+            val context = com.github.yumelira.yumebox.App.instance
+            val importedDir = File(context.filesDir, "imported")
+            val profileDir = File(importedDir, profile.id)
+            val file = File(profileDir, "config.yaml")
+            if (file.exists()) {
+                try {
+                    val uri = FileProvider.getUriForFile(
+                        context, "${context.packageName}.fileprovider", file
+                    )
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(
+                        Intent.createChooser(
+                            intent, MLang.ProfilesPage.ShareDialog.ShareFile
+                        ).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        })
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
-        )
+            showShareDialog.value = false
+            profileToShare = null
+        }, onShareLink = { profile ->
+            val context = com.github.yumelira.yumebox.App.instance
+            profile.remoteUrl?.let { url ->
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, url)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(
+                    Intent.createChooser(
+                        intent, MLang.ProfilesPage.ShareDialog.ShareLink
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    })
+            } ?: run {
+                Toast.makeText(context, MLang.ProfilesPage.ShareDialog.NoLink, Toast.LENGTH_SHORT).show()
+            }
+            showShareDialog.value = false
+            profileToShare = null
+        })
     }
 }
 
 
 @Composable
 private fun EditProfileNameDialog(
-    show: MutableState<Boolean>,
-    currentName: String,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    show: MutableState<Boolean>, currentName: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit
 ) {
     var editName by remember { mutableStateOf(currentName) }
 
     SuperDialog(
-        title = MLang.ProfilesPage.EditDialog.Title,
-        show = show,
-        onDismissRequest = onDismiss
+        title = MLang.ProfilesPage.EditDialog.Title, show = show, onDismissRequest = onDismiss
     ) {
         Column(
             modifier = Modifier
@@ -367,8 +473,7 @@ private fun EditProfileNameDialog(
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f)
+                    onClick = onDismiss, modifier = Modifier.weight(1f)
                 ) {
                     Text(MLang.ProfilesPage.Button.Cancel)
                 }
@@ -378,8 +483,7 @@ private fun EditProfileNameDialog(
                     colors = ButtonDefaults.buttonColorsPrimary()
                 ) {
                     Text(
-                        MLang.ProfilesPage.Button.Confirm,
-                        color = MiuixTheme.colorScheme.surface
+                        MLang.ProfilesPage.Button.Confirm, color = MiuixTheme.colorScheme.surface
                     )
                 }
             }
@@ -407,17 +511,17 @@ private fun AddProfileSheet(
     var fileName by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
     var isDownloading by remember { mutableStateOf(false) }
-    var downloadStartTime by remember { mutableStateOf(0L) }
+    var downloadStartTime by remember { mutableLongStateOf(0L) }
 
     val downloadProgress by profilesViewModel.downloadProgress.collectAsState()
     val uiState by profilesViewModel.uiState.collectAsState()
     var displayedProgress by remember { mutableStateOf(0) }
-    var lastProgress by remember { mutableStateOf(0) }
+    var lastProgress by remember { mutableIntStateOf(0) }
+    var hasShownCompleteAnimation by remember { mutableStateOf(false) }
 
     val urlPattern = remember {
         Regex(
-            pattern = "^https?://\\S+$",
-            options = setOf(RegexOption.IGNORE_CASE)
+            pattern = "^https?://\\S+$", options = setOf(RegexOption.IGNORE_CASE)
         )
     }
 
@@ -454,6 +558,7 @@ private fun AddProfileSheet(
         isDownloading = false
         displayedProgress = 0
         lastProgress = 0
+        hasShownCompleteAnimation = false
     }
 
 
@@ -474,8 +579,7 @@ private fun AddProfileSheet(
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA
+                context, Manifest.permission.CAMERA
             ) == PackageManager.PERMISSION_GRANTED
         )
     }
@@ -485,8 +589,7 @@ private fun AddProfileSheet(
     ) { isGranted ->
         hasCameraPermission = isGranted
         if (!isGranted) {
-            Toast.makeText(context, MLang.ProfilesPage.QrScanner.NeedCamera, Toast.LENGTH_LONG)
-                .show()
+            Toast.makeText(context, MLang.ProfilesPage.QrScanner.NeedCamera, Toast.LENGTH_LONG).show()
             selectedTypeIndex = 0
         }
     }
@@ -514,8 +617,7 @@ private fun AddProfileSheet(
             } else if (!importUrl.isNullOrBlank()) {
                 selectedTypeIndex = 0
                 url = importUrl
-                Toast.makeText(context, MLang.ProfilesPage.Message.UrlImported, Toast.LENGTH_SHORT)
-                    .show()
+                Toast.makeText(context, MLang.ProfilesPage.Message.UrlImported, Toast.LENGTH_SHORT).show()
             } else {
                 selectedTypeIndex = 0
                 try {
@@ -523,9 +625,7 @@ private fun AddProfileSheet(
                     if (clipboardUrl != null) {
                         url = clipboardUrl
                         Toast.makeText(
-                            context,
-                            MLang.ProfilesPage.Message.ClipboardRead,
-                            Toast.LENGTH_SHORT
+                            context, MLang.ProfilesPage.Message.ClipboardRead, Toast.LENGTH_SHORT
                         ).show()
                     }
                 } catch (e: Exception) {
@@ -542,59 +642,57 @@ private fun AddProfileSheet(
         if (progress != null) {
             val currentProgress = progress.progress
 
-
-            val actualProgress = when {
-                currentProgress == 10 -> {
-
-                    val cycleTime = 2000L
-                    val elapsed = (System.currentTimeMillis() % cycleTime)
-                    val cycleProgress = (elapsed.toFloat() / cycleTime * 15).toInt() + 10
-                    cycleProgress
-                }
-
-                currentProgress >= 10 && currentProgress <= 50 -> {
-
-                    currentProgress
-                }
-
-                currentProgress >= 55 && currentProgress <= 95 -> {
-
-                    currentProgress
-                }
-
-                currentProgress == 100 -> 100
-                else -> lastProgress
+            if (downloadStartTime == 0L && currentProgress > 0) {
+                downloadStartTime = System.currentTimeMillis()
             }
 
+            val actualProgress = when {
+                currentProgress == 0 -> {
+                    0
+                }
 
-            if (actualProgress >= displayedProgress) {
-
-                if (actualProgress - displayedProgress > 5) {
-
-                    val steps = (actualProgress - displayedProgress) / 5
-                    for (i in 1..steps) {
-                        val stepProgress =
-                            min(displayedProgress + (i * 5), actualProgress)
-                        displayedProgress = stepProgress
-                        delay(100)
+                currentProgress < 100 -> {
+                    if (currentProgress < 10) {
+                        val cycleTime = 2000L
+                        val elapsed = (System.currentTimeMillis() % cycleTime)
+                        val cycleProgress = (elapsed.toFloat() / cycleTime * 3).toInt()
+                        (currentProgress + cycleProgress).coerceAtMost(10)
+                    } else {
+                        currentProgress
                     }
                 }
+
+                currentProgress == 100 -> {
+                    100
+                }
+
+                else -> {
+                    lastProgress
+                }
+            }
+
+            if (actualProgress >= displayedProgress) {
+                if (actualProgress - displayedProgress > 3) {
+                    val steps = ((actualProgress - displayedProgress) / 3).coerceAtLeast(1)
+                    for (i in 1..steps) {
+                        val stepProgress = kotlin.math.min(displayedProgress + (i * 3), actualProgress)
+                        displayedProgress = stepProgress
+                        delay(80)
+                    }
+                } else {
+                    displayedProgress = actualProgress
+                }
+            } else if (lastProgress < 100) {
                 displayedProgress = actualProgress
             }
 
+            lastProgress = actualProgress
 
-            if (progress != null && progress.progress == 100) {
+            if (progress.progress == 100 && displayedProgress == 100 && !hasShownCompleteAnimation) {
+                hasShownCompleteAnimation = true
 
-                val elapsedTime = System.currentTimeMillis() - downloadStartTime
-                val minDisplayTime = 1500L
+                delay(300)
 
-
-                if (elapsedTime < minDisplayTime) {
-                    delay(minDisplayTime - elapsedTime)
-                }
-
-
-                delay(500)
                 onDownloadComplete()
             }
         }
@@ -602,33 +700,35 @@ private fun AddProfileSheet(
 
 
     LaunchedEffect(uiState.error) {
-        if (uiState.error != null && isDownloading) {
-            isDownloading = false
-            error = uiState.error ?: MLang.Component.Message.Error
+        if (uiState.error != null) {
+            context.toast(uiState.error!!, Toast.LENGTH_LONG)
+            if (isDownloading) {
+                isDownloading = false
+                error = uiState.error ?: MLang.ProfilesPage.Misc.Error
+            }
             profilesViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(uiState.message) {
+        if (uiState.message != null) {
+            profilesViewModel.clearMessage()
         }
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
-            val actualFileName =
-                context.contentResolver.query(
-                    it,
-                    arrayOf(OpenableColumns.DISPLAY_NAME),
-                    null,
-                    null,
-                    null
-                )
-                    ?.use { cursor ->
-                        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                        cursor.moveToFirst()
-                        cursor.getString(nameIndex)
-                    } ?: MLang.ProfilesPage.Message.UnknownFile
+            val actualFileName = context.contentResolver.query(
+                it, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
+            )?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                cursor.moveToFirst()
+                cursor.getString(nameIndex)
+            } ?: MLang.ProfilesPage.Message.UnknownFile
 
             val extension = actualFileName.substringAfterLast(".", "")
             if (!extension.equals("yaml", ignoreCase = true) && !extension.equals(
-                    "yml",
-                    ignoreCase = true
+                    "yml", ignoreCase = true
                 )
             ) {
                 error = MLang.ProfilesPage.Validation.YamlOnly
@@ -641,49 +741,40 @@ private fun AddProfileSheet(
 
             val fileNameWithoutExt = actualFileName.substringBeforeLast(".")
             if (name.isBlank() || name == actualFileName) {
-                name =
-                    if (fileNameWithoutExt.isNotBlank()) fileNameWithoutExt else MLang.ProfilesPage.Input.NewProfile
+                name = fileNameWithoutExt.ifBlank { MLang.ProfilesPage.Input.NewProfile }
             }
         }
     }
 
-    val qrImageLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-            uri?.let {
-                scope.launch {
-                    try {
-                        val result = readQrFromImage(context, it)
-                        if (result != null) {
-                            url = result
-                            selectedTypeIndex = 0
-                            Toast.makeText(
-                                context,
-                                MLang.ProfilesPage.QrScanner.RecognizeSuccess,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            Toast.makeText(
-                                context,
-                                MLang.ProfilesPage.QrScanner.RecognizeFailed,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    } catch (e: Exception) {
+    val qrImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let {
+            scope.launch {
+                try {
+                    val result = readQrFromImage(context, it)
+                    if (result != null) {
+                        url = result
+                        selectedTypeIndex = 0
                         Toast.makeText(
-                            context,
-                            MLang.ProfilesPage.QrScanner.RecognizeError.format(e.message),
-                            Toast.LENGTH_SHORT
+                            context, MLang.ProfilesPage.QrScanner.RecognizeSuccess, Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            context, MLang.ProfilesPage.QrScanner.RecognizeFailed, Toast.LENGTH_SHORT
                         ).show()
                     }
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        context, MLang.ProfilesPage.QrScanner.RecognizeError.format(e.message ?: ""), Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }
+    }
 
     val showCameraPreview = remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedTypeIndex, show.value, isDownloading, hasCameraPermission) {
-        showCameraPreview.value =
-            show.value && selectedTypeIndex == 2 && !isDownloading && hasCameraPermission
+        showCameraPreview.value = show.value && selectedTypeIndex == 2 && !isDownloading && hasCameraPermission
     }
 
     SuperBottomSheet(
@@ -706,22 +797,18 @@ private fun AddProfileSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             AnimatedVisibility(
-                visible = isDownloading,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+                visible = isDownloading, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center
+                        .height(200.dp), contentAlignment = Alignment.Center
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(
-                            16.dp,
-                            Alignment.CenterVertically
+                            16.dp, Alignment.CenterVertically
                         )
                     ) {
                         Box(
@@ -739,13 +826,12 @@ private fun AddProfileSheet(
                                 label = "ProgressIcon"
                             ) { complete ->
                                 Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
+                                    modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
                                 ) {
                                     if (complete) {
                                         Icon(
                                             imageVector = Yume.`Package-check`,
-                                            contentDescription = MLang.Log.Detail.Done,
+                                            contentDescription = MLang.ProfilesPage.Misc.Complete,
                                             tint = MiuixTheme.colorScheme.primary,
                                             modifier = Modifier.fillMaxSize()
                                         )
@@ -761,8 +847,7 @@ private fun AddProfileSheet(
                         }
 
                         Text(
-                            text = downloadProgress?.message
-                                ?: MLang.ProfilesPage.Progress.Downloading,
+                            text = downloadProgress?.message ?: "下载中...",
                             style = MiuixTheme.textStyles.body1,
                             color = MiuixTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
@@ -787,13 +872,10 @@ private fun AddProfileSheet(
             }
 
             AnimatedVisibility(
-                visible = !isDownloading,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+                visible = !isDownloading, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     top.yukonga.miuix.kmp.basic.Card {
                         Box(modifier = Modifier.alpha(if (profileToEdit != null) 0.5f else 1f)) {
@@ -816,24 +898,23 @@ private fun AddProfileSheet(
                                         .clickable(
                                             indication = null,
                                             interactionSource = remember { MutableInteractionSource() },
-                                            onClick = {}
-                                        )
+                                            onClick = {})
                                 )
                             }
                         }
                     }
 
                     AnimatedContent(
-                        targetState = selectedTypeIndex,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(200)) togetherWith
-                                    fadeOut(animationSpec = tween(150))
-                        },
-                        label = "ProfileTypeContent"
+                        targetState = selectedTypeIndex, transitionSpec = {
+                            fadeIn(animationSpec = tween(200)) togetherWith fadeOut(
+                                animationSpec = tween(
+                                    150
+                                )
+                            )
+                        }, label = "ProfileTypeContent"
                     ) { typeIndex ->
                         Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             when (typeIndex) {
                                 2 -> {
@@ -857,8 +938,7 @@ private fun AddProfileSheet(
                                                             MLang.ProfilesPage.QrScanner.ScanSuccess,
                                                             Toast.LENGTH_SHORT
                                                         ).show()
-                                                    }
-                                                )
+                                                    })
                                             }
                                         } else if (!hasCameraPermission) {
                                             Column(
@@ -868,13 +948,11 @@ private fun AddProfileSheet(
                                                 Text(MLang.ProfilesPage.QrScanner.NeedPermission)
                                                 Spacer(modifier = Modifier.height(8.dp))
                                                 TextButton(
-                                                    text = MLang.ProfilesPage.QrScanner.GrantPermission,
-                                                    onClick = {
+                                                    text = MLang.ProfilesPage.QrScanner.GrantPermission, onClick = {
                                                         cameraPermissionLauncher.launch(
                                                             Manifest.permission.CAMERA
                                                         )
-                                                    }
-                                                )
+                                                    })
                                             }
                                         } else {
                                             CircularProgressIndicator(modifier = Modifier.size(32.dp))
@@ -892,8 +970,7 @@ private fun AddProfileSheet(
                                             showCameraPreview.value = false
                                             show.value = false
                                             profilesViewModel.clearDownloadProgress()
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
+                                        }, modifier = Modifier.fillMaxWidth()
                                     ) { Text(MLang.ProfilesPage.Button.Cancel) }
                                 }
 
@@ -947,22 +1024,22 @@ private fun AddProfileSheet(
                                                 show.value = false
                                                 profilesViewModel.clearDownloadProgress()
                                             },
-                                            modifier = Modifier.weight(1f)
                                         ) { Text(MLang.ProfilesPage.Button.Cancel) }
                                         Button(
                                             onClick = {
                                                 if (typeIndex == 0 && url.isBlank()) {
-                                                    error =
-                                                        MLang.ProfilesPage.Validation.EnterUrl; return@Button
+                                                    error = MLang.ProfilesPage.Validation.EnterUrl; return@Button
                                                 }
                                                 if (typeIndex == 1 && filePath.isBlank()) {
-                                                    error =
-                                                        MLang.ProfilesPage.Validation.SelectFile; return@Button
+                                                    error = MLang.ProfilesPage.Validation.SelectFile; return@Button
                                                 }
 
                                                 keyboardController?.hide()
                                                 profilesViewModel.clearError()
                                                 downloadStartTime = System.currentTimeMillis()
+                                                displayedProgress = 0
+                                                lastProgress = 0
+                                                hasShownCompleteAnimation = false
                                                 isDownloading = true
 
                                                 if (typeIndex == 0) {
@@ -975,39 +1052,31 @@ private fun AddProfileSheet(
                                                         onUpdateProfile(updatedProfile)
                                                         show.value = false
                                                     } else {
-                                                        val profile = Profile(
-                                                            id = UUID.randomUUID().toString(),
-                                                            name = if (name.isNotBlank()) name else MLang.ProfilesPage.Input.NewProfile,
-                                                            config = "",
-                                                            remoteUrl = url,
-                                                            type = ProfileType.URL,
-                                                            createdAt = System.currentTimeMillis(),
-                                                            updatedAt = System.currentTimeMillis()
-                                                        )
-
-                                                        onAddProfile(profile)
-
                                                         scope.launch {
-                                                            val downloadedProfile =
-                                                                profilesViewModel.downloadProfile(
-                                                                    profile,
-                                                                    saveToDb = true
-                                                                )
-                                                            if (downloadedProfile != null && !downloadedProfile.config.isNullOrBlank()) {
-                                                                show.value = false
-                                                                profilesViewModel.clearDownloadProgress()
+                                                            val profile = Profile(
+                                                                id = UUID.randomUUID().toString(),
+                                                                name = name.ifBlank { MLang.ProfilesPage.Input.NewProfile },
+                                                                config = "",
+                                                                remoteUrl = url,
+                                                                type = ProfileType.URL,
+                                                                createdAt = System.currentTimeMillis(),
+                                                                updatedAt = System.currentTimeMillis()
+                                                            )
+
+                                                            val downloadedProfile = profilesViewModel.downloadProfile(
+                                                                profile, saveToDb = true
+                                                            )
+                                                            if (downloadedProfile != null && downloadedProfile.config.isNotBlank()) {
                                                             } else {
                                                                 isDownloading = false
                                                                 profilesViewModel.clearDownloadProgress()
-                                                                profilesViewModel.showError(MLang.ProfilesPage.Validation.DownloadFailed)
                                                             }
                                                         }
                                                     }
                                                 } else {
                                                     if (profileToEdit != null) {
                                                         val updatedProfile = profileToEdit.copy(
-                                                            name = name,
-                                                            updatedAt = System.currentTimeMillis()
+                                                            name = name, updatedAt = System.currentTimeMillis()
                                                         )
                                                         onUpdateProfile(updatedProfile)
                                                         show.value = false
@@ -1015,13 +1084,12 @@ private fun AddProfileSheet(
                                                         scope.launch {
                                                             val importedProfile =
                                                                 profilesViewModel.importProfileFromFile(
-                                                                    Uri.parse(filePath),
-                                                                    name.ifBlank({ MLang.ProfilesPage.Input.NewProfile }),
-                                                                    saveToDb = false
+                                                                    filePath.toUri(),
+                                                                    name.ifBlank { MLang.ProfilesPage.Input.NewProfile },
+                                                                    saveToDb = true
                                                                 )
                                                             isDownloading = false
                                                             if (importedProfile != null) {
-                                                                onAddProfile(importedProfile)
                                                                 show.value = false
                                                             }
                                                         }
@@ -1058,70 +1126,62 @@ private fun StableQrScanner(
 
     val hasScanned = remember { AtomicBoolean(false) }
 
-    AndroidView(
-        modifier = Modifier
-            .fillMaxSize()
-            .clipToBounds(),
-        factory = { context ->
-            val previewView = PreviewView(context).apply {
-                scaleType = PreviewView.ScaleType.FILL_CENTER
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                )
-            }
-
-            val barcodeScanner = BarcodeScanning.getClient(
-                BarcodeScannerOptions.Builder()
-                    .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                    .build()
+    AndroidView(modifier = Modifier
+        .fillMaxSize()
+        .clipToBounds(), factory = { context ->
+        val previewView = PreviewView(context).apply {
+            scaleType = PreviewView.ScaleType.FILL_CENTER
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
             )
+        }
 
-            val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+        val barcodeScanner = BarcodeScanning.getClient(
+            BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
+        )
 
-            val previewUseCase = Preview.Builder().build().also {
-                it.surfaceProvider = previewView.surfaceProvider
-            }
+        val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
-            val imageAnalysisUseCase = ImageAnalysis.Builder()
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .build()
-                .also {
-                    it.setAnalyzer(cameraExecutor) { imageProxy ->
-                        processStableQrImage(barcodeScanner, imageProxy) { text ->
-                            if (hasScanned.compareAndSet(false, true)) {
-                                currentOnScanned(text)
-                            }
+        val previewUseCase = Preview.Builder().build().also {
+            it.surfaceProvider = previewView.surfaceProvider
+        }
+
+        val imageAnalysisUseCase =
+            ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build().also {
+                it.setAnalyzer(cameraExecutor) { imageProxy ->
+                    processStableQrImage(barcodeScanner, imageProxy) { text ->
+                        if (hasScanned.compareAndSet(false, true)) {
+                            currentOnScanned(text)
                         }
                     }
                 }
-
-            coroutineScope.launch {
-                try {
-                    val cameraProvider = context.getStableCameraProvider()
-                    cameraProvider.unbindAll()
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        previewUseCase,
-                        imageAnalysisUseCase,
-                    )
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
             }
 
-            previewView
-        },
-        onRelease = { previewView ->
+        coroutineScope.launch {
             try {
-                val context = previewView.context
-                ProcessCameraProvider.getInstance(context).get().unbindAll()
+                val cameraProvider = context.getStableCameraProvider()
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(
+                    lifecycleOwner,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    previewUseCase,
+                    imageAnalysisUseCase,
+                )
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
-    )
+
+        previewView
+    }, onRelease = { previewView ->
+        try {
+            val context = previewView.context
+            ProcessCameraProvider.getInstance(context).get().unbindAll()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    })
 }
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -1136,21 +1196,19 @@ private fun processStableQrImage(
             imageProxy.imageInfo.rotationDegrees,
         )
 
-        barcodeScanner.process(inputImage)
-            .addOnSuccessListener { barcodeList ->
-                barcodeList.firstOrNull()?.rawValue?.let { text ->
-                    onScanned(text)
-                }
+        barcodeScanner.process(inputImage).addOnSuccessListener { barcodeList ->
+            barcodeList.firstOrNull()?.rawValue?.let { text ->
+                onScanned(text)
             }
-            .addOnCompleteListener {
-                imageProxy.image?.close()
-                imageProxy.close()
-            }
+        }.addOnCompleteListener {
+            imageProxy.image?.close()
+            imageProxy.close()
+        }
     } ?: imageProxy.close()
 }
 
 private suspend fun Context.getStableCameraProvider(): ProcessCameraProvider =
-    suspendCoroutine { continuation ->
+    suspendCancellableCoroutine { continuation ->
         ProcessCameraProvider.getInstance(this).also { future ->
             future.addListener(
                 { continuation.resume(future.get()) },
@@ -1159,28 +1217,23 @@ private suspend fun Context.getStableCameraProvider(): ProcessCameraProvider =
         }
     }
 
-private suspend fun readQrFromImage(context: Context, uri: Uri): String? =
-    suspendCancellableCoroutine { continuation ->
-        try {
-            val inputImage = InputImage.fromFilePath(context, uri)
-            val scanner = BarcodeScanning.getClient(
-                BarcodeScannerOptions.Builder()
-                    .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                    .build()
-            )
-            scanner.process(inputImage)
-                .addOnSuccessListener { barcodes ->
-                    val barcode = barcodes.getOrNull(0)
-                    continuation.resume(barcode?.rawValue)
-                }
-                .addOnFailureListener {
-                    continuation.resume(null)
-                }
-        } catch (e: Exception) {
-            e.printStackTrace()
+private suspend fun readQrFromImage(context: Context, uri: Uri): String? = suspendCancellableCoroutine { continuation ->
+    try {
+        val inputImage = InputImage.fromFilePath(context, uri)
+        val scanner = BarcodeScanning.getClient(
+            BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
+        )
+        scanner.process(inputImage).addOnSuccessListener { barcodes ->
+            val barcode = barcodes.getOrNull(0)
+            continuation.resume(barcode?.rawValue)
+        }.addOnFailureListener {
             continuation.resume(null)
         }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        continuation.resume(null)
     }
+}
 
 @Composable
 private fun DeleteConfirmDialog(
@@ -1192,20 +1245,271 @@ private fun DeleteConfirmDialog(
         show = remember { mutableStateOf(true) },
         onDismissRequest = onDismiss
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier.weight(1f)
-            ) { Text(MLang.ProfilesPage.Button.Cancel) }
-            Button(
-                onClick = onConfirm,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColorsPrimary()
+        DialogButtonRow(
+            onCancel = onDismiss,
+            onConfirm = onConfirm,
+            cancelText = MLang.ProfilesPage.Button.Cancel,
+            confirmText = MLang.ProfilesPage.DeleteDialog.Confirm
+        )
+    }
+}
+
+@Composable
+private fun LinkSettingsDialog(
+    show: MutableState<Boolean>,
+    links: List<ProfileLink>,
+    linkOpenMode: LinkOpenMode,
+    defaultLinkId: String,
+    onOpenModeChange: (LinkOpenMode) -> Unit,
+    onDefaultLinkChange: (String) -> Unit,
+    onAddLink: () -> Unit,
+    onDeleteLink: (String) -> Unit,
+    onOpenLink: (ProfileLink) -> Unit
+) {
+    val openModeOptions = listOf(
+        MLang.ProfilesPage.LinkSettings.OpenModeInApp, MLang.ProfilesPage.LinkSettings.OpenModeExternal
+    )
+    val openModeIndex = when (linkOpenMode) {
+        LinkOpenMode.IN_APP -> 0
+        LinkOpenMode.EXTERNAL_BROWSER -> 1
+    }
+
+    val defaultLinkIndex = if (defaultLinkId.isEmpty() || links.isEmpty()) {
+        0
+    } else {
+        links.indexOfFirst { it.id == defaultLinkId }.let { if (it == -1) 0 else it }
+    }
+
+    SuperBottomSheet(
+        title = MLang.ProfilesPage.LinkSettings.Title, show = show, onDismissRequest = {
+            show.value = false
+        }) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // 打开方式选择
+            top.yukonga.miuix.kmp.basic.Card {
+                SuperDropdown(
+                    title = MLang.ProfilesPage.LinkSettings.OpenMode,
+                    items = openModeOptions,
+                    selectedIndex = openModeIndex,
+                    onSelectedIndexChange = { index ->
+                        val mode = when (index) {
+                            0 -> LinkOpenMode.IN_APP
+                            1 -> LinkOpenMode.EXTERNAL_BROWSER
+                            else -> LinkOpenMode.IN_APP
+                        }
+                        onOpenModeChange(mode)
+                    })
+            }
+
+            // 默认链接选择
+            if (links.isNotEmpty()) {
+                top.yukonga.miuix.kmp.basic.Card {
+                    SuperDropdown(
+                        title = MLang.ProfilesPage.LinkSettings.DefaultLink,
+                        summary = MLang.ProfilesPage.LinkSettings.DefaultLinkSummary,
+                        items = links.map { it.name },
+                        selectedIndex = defaultLinkIndex,
+                        onSelectedIndexChange = { index ->
+                            if (index in links.indices) {
+                                onDefaultLinkChange(links[index].id)
+                            }
+                        })
+                }
+            }
+
+            // 链接列表
+            if (links.isNotEmpty()) {
+                top.yukonga.miuix.kmp.basic.Card {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        links.forEachIndexed { index, link ->
+                            Row(modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenLink(link) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = link.name, style = MiuixTheme.textStyles.body1
+                                    )
+                                    Text(
+                                        text = link.url,
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = { onDeleteLink(link.id) }) {
+                                    Icon(
+                                        imageVector = MiuixIcons.Useful.Delete,
+                                        contentDescription = MLang.Component.ProfileCard.Delete,
+                                        tint = MiuixTheme.colorScheme.error
+                                    )
+                                }
+                            }
+
+                            if (index < links.size - 1) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    thickness = 0.5.dp,
+                                    color = MiuixTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    MLang.ProfilesPage.DeleteDialog.Confirm,
-                    color = MiuixTheme.colorScheme.background
+                TextButton(
+                    text = MLang.ProfilesPage.LinkSettings.Close,
+                    onClick = { show.value = false },
+                    modifier = Modifier.weight(1f)
                 )
+                Button(
+                    onClick = onAddLink, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColorsPrimary()
+                ) {
+                    Text(MLang.ProfilesPage.LinkSettings.AddLink, color = MiuixTheme.colorScheme.surface)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddLinkDialog(
+    show: MutableState<Boolean>,
+    linkToEdit: ProfileLink?,
+    linkName: String,
+    onNameChange: (String) -> Unit,
+    linkUrl: String,
+    onUrlChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    var error by remember { mutableStateOf("") }
+    var currentName by remember { mutableStateOf(linkName) }
+    var currentUrl by remember { mutableStateOf(linkUrl) }
+
+    LaunchedEffect(show.value, linkToEdit) {
+        if (show.value) {
+            if (linkToEdit != null) {
+                currentName = linkToEdit.name
+                currentUrl = linkToEdit.url
+            } else {
+                currentName = ""
+                currentUrl = ""
+            }
+            error = ""
+        }
+    }
+
+    SuperBottomSheet(
+        title = if (linkToEdit != null) MLang.ProfilesPage.LinkSettings.EditLink else MLang.ProfilesPage.LinkSettings.AddLink,
+        show = show,
+        onDismissRequest = onDismiss
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            TextField(
+                value = currentName, onValueChange = {
+                    currentName = it
+                    error = ""
+                }, label = MLang.ProfilesPage.LinkSettings.Name, modifier = Modifier.fillMaxWidth()
+            )
+
+            TextField(
+                value = currentUrl, onValueChange = {
+                    currentUrl = it
+                    error = ""
+                }, label = MLang.ProfilesPage.LinkSettings.Url, modifier = Modifier.fillMaxWidth()
+            )
+
+            if (error.isNotEmpty()) {
+                Text(
+                    text = error, color = MiuixTheme.colorScheme.error, style = MiuixTheme.textStyles.body2
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = onDismiss, modifier = Modifier.weight(1f)
+                ) {
+                    Text(MLang.ProfilesPage.Button.Cancel)
+                }
+                Button(
+                    onClick = {
+                        when {
+                            currentName.isBlank() -> error = MLang.ProfilesPage.LinkSettings.Validation.EnterName
+                            currentUrl.isBlank() -> error = MLang.ProfilesPage.LinkSettings.Validation.EnterUrl
+                            !currentUrl.startsWith("http", ignoreCase = true) -> error =
+                                MLang.ProfilesPage.LinkSettings.Validation.InvalidUrl
+
+                            else -> {
+                                onNameChange(currentName)
+                                onUrlChange(currentUrl)
+                                onConfirm()
+                            }
+                        }
+                    }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColorsPrimary()
+                ) {
+                    Text(MLang.ProfilesPage.Button.Confirm, color = MiuixTheme.colorScheme.surface)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShareOptionsDialog(
+    show: MutableState<Boolean>,
+    profile: Profile,
+    onDismiss: () -> Unit,
+    onShareFile: (Profile) -> Unit,
+    onShareLink: (Profile) -> Unit
+) {
+    SuperDialog(
+        title = MLang.ProfilesPage.ShareDialog.Title, show = show, onDismissRequest = onDismiss
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (profile.remoteUrl != null) {
+                Button(
+                    onClick = { onShareLink(profile) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColorsPrimary()
+                ) {
+                    Text(MLang.ProfilesPage.ShareDialog.ShareLink, color = MiuixTheme.colorScheme.surface)
+                }
+            }
+            Button(
+                onClick = { onShareFile(profile) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors()
+            ) {
+                Text(MLang.ProfilesPage.ShareDialog.ShareFile)
+            }
+            Button(
+                onClick = onDismiss, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors()
+            ) {
+                Text(MLang.ProfilesPage.Button.Cancel)
             }
         }
     }

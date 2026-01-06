@@ -56,7 +56,7 @@ data class DailyTrafficSummary(
     val hourlyData: Map<Int, TrafficSlotData> = emptyMap()
 ) {
     val total: Long get() = totalUpload + totalDownload
-    
+
     companion object {
         val EMPTY = DailyTrafficSummary(0L, 0L, 0L)
     }
@@ -84,7 +84,7 @@ data class ProfileTrafficUsage(
 enum class StatisticsTimeRange(val days: Int) {
     TODAY(1),
     WEEK(7);
-    
+
     val label: String
         get() = when (this) {
             TODAY -> MLang.TrafficStatistics.TimeRange.Today
@@ -95,7 +95,7 @@ enum class StatisticsTimeRange(val days: Int) {
 enum class ChartGranularity {
     HOURLY,
     DAILY;
-    
+
     val label: String
         get() = when (this) {
             HOURLY -> MLang.TrafficStatistics.Chart.Hourly

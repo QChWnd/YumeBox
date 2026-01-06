@@ -25,13 +25,12 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
-import kotlinx.coroutines.launch
-import org.koin.android.ext.android.inject
 import com.github.yumelira.yumebox.clash.manager.ClashManager
 import com.github.yumelira.yumebox.data.store.AppSettingsStorage
 import com.github.yumelira.yumebox.data.store.ProfilesStore
-import com.github.yumelira.yumebox.service.delegate.ClashServiceDelegate
 import com.github.yumelira.yumebox.service.notification.ServiceNotificationManager
+import kotlinx.coroutines.*
+import org.koin.android.ext.android.inject
 import timber.log.Timber
 
 class ClashHttpService : Service() {
@@ -65,16 +64,16 @@ class ClashHttpService : Service() {
     private val profilesStore: ProfilesStore by inject()
     private val appSettingsStorage: AppSettingsStorage by inject()
 
-    private val delegate by lazy {
-        ClashServiceDelegate(
-            this, clashManager, profilesStore, appSettingsStorage,
-            ServiceNotificationManager.HTTP_CONFIG
-        )
+    private val notificationManager by lazy {
+        ServiceNotificationManager(this, ServiceNotificationManager.HTTP_CONFIG)
     }
+
+    private var notificationJob: Job? = null
+    private var serviceScope: CoroutineScope? = null
 
     override fun onCreate() {
         super.onCreate()
-        delegate.initialize()
+        notificationManager.createChannel()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -82,7 +81,7 @@ class ClashHttpService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(
             ServiceNotificationManager.HTTP_CONFIG.notificationId,
-            delegate.notificationManager.create("正在连接...", "正在启动代理", false)
+            notificationManager.create("正在连接...", "正在启动代理", false)
         )
 
         when (intent?.action) {
@@ -95,6 +94,7 @@ class ClashHttpService : Service() {
                     stopSelf()
                 }
             }
+
             ACTION_STOP -> stopHttpProxy()
             else -> stopSelf()
         }
@@ -103,40 +103,64 @@ class ClashHttpService : Service() {
     }
 
     private fun startHttpProxy(profileId: String) {
-        delegate.serviceScope.launch {
+        serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        serviceScope?.launch {
             try {
-                val startTime = System.currentTimeMillis()
-
-                val profile = delegate.loadProfileIfNeeded(
-                    profileId, willUseTunMode = false, quickStart = true
-                ).getOrElse { error ->
-                    Timber.tag(TAG).e("配置加载失败: ${error.message}")
-                    delegate.showErrorNotification("启动失败", error.message ?: "配置加载失败")
-                    return@launch
-                }
-                
-                val loadTime = System.currentTimeMillis() - startTime
-                Timber.tag(TAG).d("配置加载完成: ${loadTime}ms")
-
-                val address = clashManager.startHttpMode().getOrNull() ?: run {
-                    Timber.tag(TAG).e("HTTP 代理启动失败")
-                    delegate.showErrorNotification("启动失败", "无法启动 HTTP 代理")
+                // 1. 获取配置
+                val profile = profilesStore.getAllProfiles().find { it.id == profileId }
+                if (profile == null) {
+                    Timber.tag(TAG).e("未找到配置文件: $profileId")
+                    showErrorNotification("启动失败", "配置文件不存在")
                     return@launch
                 }
 
-                val totalTime = System.currentTimeMillis() - startTime
-                Timber.tag(TAG).d("HTTP 代理启动完成: ${totalTime}ms, 地址: $address")
-                
-                delegate.startNotificationUpdate()
+                // 2. 加载配置到 Clash
+                val loadResult = clashManager.loadProfile(profile)
+                if (loadResult.isFailure) {
+                    val error = loadResult.exceptionOrNull()
+                    showErrorNotification("启动失败", error?.message ?: "配置加载失败")
+                    return@launch
+                }
+
+                // 3. 启动HTTP代理
+                clashManager.startHttp().getOrNull() ?: run {
+                    showErrorNotification("启动失败", "无法启动 HTTP 代理")
+                    return@launch
+                }
+
+                // 4. 启动通知更新
+                startNotificationUpdate()
             } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "HTTP 代理启动失败")
-                delegate.showErrorNotification("启动失败", e.message ?: "未知错误")
+                showErrorNotification("启动失败", e.message ?: "未知错误")
             }
         }
     }
 
+    private fun startNotificationUpdate() {
+        notificationJob?.cancel()
+        notificationJob = notificationManager.startTrafficUpdate(
+            serviceScope!!, clashManager, appSettingsStorage
+        )
+    }
+
+    private fun stopNotificationUpdate() {
+        notificationJob?.cancel()
+        notificationJob = null
+    }
+
+    private fun showErrorNotification(title: String, content: String) {
+        startForeground(
+            ServiceNotificationManager.HTTP_CONFIG.notificationId,
+            notificationManager.create(title, content, false)
+        )
+        serviceScope?.launch {
+            delay(3000)
+            stopSelf()
+        }
+    }
+
     private fun stopHttpProxy() {
-        delegate.stopNotificationUpdate()
+        stopNotificationUpdate()
         clashManager.stop()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -144,7 +168,7 @@ class ClashHttpService : Service() {
 
     override fun onDestroy() {
         stopHttpProxy()
-        delegate.cleanup()
+        serviceScope?.cancel()
         super.onDestroy()
     }
 }

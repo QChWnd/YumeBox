@@ -50,8 +50,4 @@ object DeviceUtil {
             else -> "arm64-v8a"
         }
     }
-
-    fun supportsAbi(abi: String): Boolean {
-        return Build.SUPPORTED_ABIS.contains(abi)
-    }
 }

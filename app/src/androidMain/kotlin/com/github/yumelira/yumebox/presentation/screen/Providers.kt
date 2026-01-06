@@ -20,32 +20,26 @@
 
 package com.github.yumelira.yumebox.presentation.screen
 
-import android.widget.Toast
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
 import com.github.yumelira.yumebox.core.model.Provider
 import com.github.yumelira.yumebox.presentation.component.*
 import com.github.yumelira.yumebox.presentation.component.Card
 import com.github.yumelira.yumebox.presentation.viewmodel.ProvidersViewModel
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.ListPopup
@@ -57,11 +51,10 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.extra.DropdownImpl
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.icons.useful.Edit
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.text.SimpleDateFormat
 import java.util.*
-import dev.oom_wg.purejoy.mlang.MLang
-import top.yukonga.miuix.kmp.icon.icons.useful.Edit
 
 @Composable
 @Destination<RootGraph>
@@ -97,7 +90,7 @@ fun ProvidersScreen(navigator: DestinationsNavigator) {
     Scaffold(
         topBar = {
             TopBar(
-                title = MLang.Providers.Title,
+                title = "外部资源",
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     NavigationBackIcon(navigator = navigator)
@@ -108,7 +101,7 @@ fun ProvidersScreen(navigator: DestinationsNavigator) {
                             isRotating = uiState.isUpdatingAll,
                             onClick = { viewModel.updateAllProviders() },
                             modifier = Modifier.padding(end = 24.dp),
-                            contentDescription = MLang.Providers.Action.UpdateAll
+                            contentDescription = "更新全部"
                         )
                     }
                 }
@@ -117,13 +110,13 @@ fun ProvidersScreen(navigator: DestinationsNavigator) {
     ) { innerPadding ->
         if (!isRunning) {
             CenteredText(
-                firstLine = MLang.Providers.Empty.NotRunning,
-                secondLine = MLang.Providers.Empty.NotRunningHint
+                firstLine = "代理未启动",
+                secondLine = "请先启动代理服务以查看外部资源"
             )
         } else if (providers.isEmpty() && !uiState.isLoading) {
             CenteredText(
-                firstLine = MLang.Providers.Empty.NoProviders,
-                secondLine = MLang.Providers.Empty.NoProvidersHint
+                firstLine = "暂无外部资源",
+                secondLine = "当前配置未包含外部资源"
             )
         } else {
             ScreenLazyColumn(
@@ -135,7 +128,7 @@ fun ProvidersScreen(navigator: DestinationsNavigator) {
 
                 if (proxyProviders.isNotEmpty()) {
                     item {
-                        SmallTitle(MLang.Providers.Type.ProxyProviders.format(proxyProviders.size))
+                        SmallTitle("代理提供者 (${proxyProviders.size})")
                     }
                     proxyProviders.forEach { provider ->
                         val providerKey = "${provider.type}_${provider.name}"
@@ -152,7 +145,7 @@ fun ProvidersScreen(navigator: DestinationsNavigator) {
 
                 if (ruleProviders.isNotEmpty()) {
                     item {
-                        SmallTitle(MLang.Providers.Type.RuleProviders.format(ruleProviders.size))
+                        SmallTitle("规则提供者 (${ruleProviders.size})")
                     }
                     ruleProviders.forEach { provider ->
                         val providerKey = "${provider.type}_${provider.name}"
@@ -182,7 +175,7 @@ private fun ProviderCard(
     val colorScheme = MiuixTheme.colorScheme
     val updateBg = remember(colorScheme) { colorScheme.tertiaryContainer.copy(alpha = 0.6f) }
     val updateTint = remember(colorScheme) { colorScheme.onTertiaryContainer.copy(alpha = 0.8f) }
-    
+
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -248,11 +241,11 @@ private fun ProviderCard(
                                 modifier = Modifier.size(20.dp),
                                 imageVector = MiuixIcons.Useful.Edit,
                                 tint = updateTint,
-                                contentDescription = MLang.Providers.Action.Operation,
+                                contentDescription = "操作",
                             )
                             Text(
                                 modifier = Modifier.padding(end = 3.dp),
-                                text = MLang.Providers.Action.Operation,
+                                text = "操作",
                                 color = updateTint,
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 15.sp
@@ -260,7 +253,7 @@ private fun ProviderCard(
                         }
                     }
 
-                    val items = listOf(MLang.Providers.Action.Update, MLang.Providers.Action.Upload)
+                    val items = listOf("更新", "上传")
                     var selectedIndex by remember { mutableStateOf(0) }
 
                     ListPopup(

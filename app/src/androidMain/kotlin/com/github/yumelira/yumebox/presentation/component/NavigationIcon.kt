@@ -24,14 +24,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.dropUnlessResumed
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.github.yumelira.yumebox.presentation.theme.AppTheme.spacing
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import dev.oom_wg.purejoy.mlang.MLang
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.icons.useful.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
-import dev.oom_wg.purejoy.mlang.MLang
 
 @Composable
 fun NavigationBackIcon(

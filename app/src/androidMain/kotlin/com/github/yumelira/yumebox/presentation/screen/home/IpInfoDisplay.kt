@@ -36,9 +36,9 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.github.yumelira.yumebox.common.util.LocaleUtil
 import com.github.yumelira.yumebox.data.repository.IpMonitoringState
+import dev.oom_wg.purejoy.mlang.MLang
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import dev.oom_wg.purejoy.mlang.MLang
 
 @Composable
 fun IpInfoDisplay(
@@ -53,6 +53,7 @@ fun IpInfoDisplay(
             countryCode = null,
             modifier = modifier
         )
+
         is IpMonitoringState.Error -> IpInfoRow(
             label = MLang.Home.IpInfo.ExitIp,
             value = MLang.Home.IpInfo.Failed,
@@ -60,6 +61,7 @@ fun IpInfoDisplay(
             countryCode = null,
             modifier = modifier
         )
+
         is IpMonitoringState.Success -> {
             val externalIp = state.externalIp
             if (externalIp != null) {
@@ -127,7 +129,7 @@ private fun CountryBadge(countryCode: String?) {
     if (countryCode != null) {
         val displayCountryCode = LocaleUtil.normalizeRegionCode(countryCode) ?: countryCode
         val flagUrl = LocaleUtil.normalizeFlagUrl(countryCode)
-        
+
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically

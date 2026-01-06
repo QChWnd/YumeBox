@@ -1,12 +1,13 @@
 @file:Suppress("UnstableApiUsage")
 
+import com.android.build.gradle.internal.api.BaseVariantOutputImpl
 import com.android.build.gradle.tasks.MergeSourceSetFolders
+import org.gradle.api.provider.MapProperty
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.util.Properties
+import java.util.*
 
 abstract class DownloadGeoFilesTask : DefaultTask() {
     @get:Input
@@ -48,7 +49,6 @@ plugins {
     id("dev.oom-wg.purejoy.mlang")
 }
 
-
 MLang {
     name = null
     configDir = "../lang"
@@ -56,7 +56,6 @@ MLang {
     base = true
     compose = true
 }
-
 val targetAbi = project.findProperty("android.injected.build.abi") as String?
 val mmkvVersion = when (targetAbi) {
     "arm64-v8a", "x86_64" -> "2.2.4"
@@ -68,48 +67,49 @@ val appNamespace = gropify.project.namespace.base
 val appName = gropify.project.name
 val jvmVersionNumber = gropify.project.jvm
 val jvmVersion = jvmVersionNumber.toString()
-val javaVersion = JavaVersion.toVersion(jvmVersionNumber)
+val javaVersion = JavaVersion.toVersion(jvmVersionNumber) ?: JavaVersion.VERSION_17
 val appAbiList = gropify.abi.app.list.split(",").map { it.trim() }
 val localeList = gropify.locale.app.list.split(",").map { it.trim() }
 
 kotlin {
-    androidTarget()
-    jvmToolchain {
-        languageVersion.set(JavaLanguageVersion.of(jvmVersionNumber))
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.fromTarget(jvmVersion))
+        }
     }
     sourceSets {
         androidMain.dependencies {
             implementation(compose.preview)
-            implementation("io.github.kyant0:backdrop:1.0.1")
-            implementation("androidx.activity:activity-compose:1.11.0")
+            implementation("androidx.activity:activity-compose:1.12.2")
             implementation("top.yukonga.miuix.kmp:miuix:0.7.2")
-            implementation("dev.chrisbanes.haze:haze-materials:1.6.10")
+            implementation("dev.chrisbanes.haze:haze-materials:1.7.1")
             implementation(mmkvDependency)
             implementation("io.insert-koin:koin-core:4.1.1")
             implementation("io.insert-koin:koin-android:4.1.1")
             implementation("io.insert-koin:koin-androidx-compose:4.1.1")
             implementation("io.github.raamcosta.compose-destinations:core:2.3.0")
-            implementation("com.squareup.okhttp3:okhttp:5.3.0")
+            implementation("com.squareup.okhttp3:okhttp:5.3.2")
             implementation("com.jakewharton.timber:timber:5.0.1")
             implementation("com.caoccao.javet:javet-node-android:5.0.2")
-            implementation("com.highcapable.pangutext:pangutext-android:1.0.4")
-            implementation("org.apache.commons:commons-compress:1.26.1")
+            implementation("com.highcapable.pangutext:pangutext-android:1.0.5")
+            implementation("org.apache.commons:commons-compress:1.28.0")
             implementation("com.google.mlkit:barcode-scanning:17.3.0")
-            implementation("androidx.camera:camera-camera2:1.4.2")
-            implementation("androidx.camera:camera-lifecycle:1.4.2")
-            implementation("androidx.camera:camera-view:1.4.2")
-            implementation("androidx.camera:camera-core:1.4.2")
-            implementation("androidx.camera:camera-video:1.4.2")
-            implementation("io.ktor:ktor-client-core:2.3.8")
-            implementation("io.ktor:ktor-client-android:2.3.8")
-            implementation("io.ktor:ktor-client-content-negotiation:2.3.8")
-            implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.8")
-            implementation("io.coil-kt.coil3:coil-compose:3.0.4")
-            implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.4")
-            implementation("io.coil-kt.coil3:coil-svg:3.0.4")
-            implementation("com.mikepenz:aboutlibraries-core:13.1.0")
-            implementation("com.mikepenz:aboutlibraries-compose:13.1.0")
-            implementation("com.mikepenz:aboutlibraries-compose-m3:13.1.0")
+            implementation("androidx.camera:camera-camera2:1.5.2")
+            implementation("androidx.camera:camera-lifecycle:1.5.2")
+            implementation("androidx.camera:camera-view:1.5.2")
+            implementation("androidx.camera:camera-core:1.5.2")
+            implementation("androidx.camera:camera-video:1.5.2")
+            implementation("io.ktor:ktor-client-core:3.3.3")
+            implementation("io.ktor:ktor-client-android:3.3.3")
+            implementation("io.ktor:ktor-client-content-negotiation:3.3.3")
+            implementation("io.ktor:ktor-serialization-kotlinx-json:3.3.3")
+            implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+            implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
+            implementation("io.coil-kt.coil3:coil-svg:3.3.0")
+            implementation("com.mikepenz:aboutlibraries-core:13.2.1")
+            implementation("com.mikepenz:aboutlibraries-compose:13.2.1")
+            implementation("com.mikepenz:aboutlibraries-compose-m3:13.2.1")
+            implementation("sh.calvin.reorderable:reorderable:2.5.0")
         }
 
         commonMain.dependencies {
@@ -119,19 +119,10 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.components.uiToolingPreview)
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
-            implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
-            implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
-        }
-
-        commonTest.dependencies {
-            implementation("org.jetbrains.kotlin:kotlin-test:2.2.21")
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+            implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+            implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
         }
     }
-}
-
-tasks.withType<KotlinJvmCompile>().configureEach {
-    compilerOptions.jvmTarget.set(JvmTarget.fromTarget(jvmVersion))
 }
 
 android {
@@ -167,8 +158,8 @@ android {
         val keystore = rootProject.file("signing.properties")
         if (keystore.exists()) {
             create("release") {
-                val prop = Properties().apply {
-                    keystore.inputStream().use(this::load)
+                val prop = Properties().also { props ->
+                    keystore.inputStream().use { stream -> props.load(stream) }
                 }
                 storeFile = rootProject.file(prop.getProperty("keystore.path") ?: "release.keystore")
                 storePassword = prop.getProperty("keystore.password")!!
@@ -226,7 +217,7 @@ android {
 
     applicationVariants.all {
         outputs.all {
-            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            val output = this as BaseVariantOutputImpl
             val abiName = filters.find { it.filterType == "ABI" }?.identifier ?: "universal"
             val buildTypeName = buildType.name
             output.outputFileName = "${appName}-${abiName}-${buildTypeName}.apk"
@@ -238,14 +229,14 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     debugImplementation(compose.uiTooling)
-    ksp("io.github.raamcosta.compose-destinations:ksp:2.3.0")
+    add("kspAndroid", "io.github.raamcosta.compose-destinations:ksp:2.3.0")
 }
 
 ksp {
     arg("compose-destinations.defaultTransitions", "none")
 }
 
-val geoFilesDownloadDir = layout.projectDirectory.dir("src/androidMain/assets")
+val geoFilesDownloadDir: Directory? = layout.projectDirectory.dir("src/androidMain/assets")
 
 val downloadGeoFilesTask = tasks.register<DownloadGeoFilesTask>("downloadGeoFiles") {
     description = "Download GeoIP and GeoSite databases from MetaCubeX"
@@ -282,7 +273,7 @@ tasks.register<Delete>("cleanGeoFiles") {
 
 aboutLibraries {
     export {
-        outputFile = file("src/androidMain/resources/aboutlibraries.json")
+        outputFile = file("src/androidMain/res/aboutlibraries.json")
     }
 }
 

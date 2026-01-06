@@ -20,13 +20,13 @@
 
 package com.github.yumelira.yumebox.common.util
 
-import android.util.Log
-import kotlinx.coroutines.delay
 import com.github.yumelira.yumebox.clash.manager.ClashManager
 import com.github.yumelira.yumebox.data.repository.ProxyConnectionService
 import com.github.yumelira.yumebox.data.store.AppSettingsStorage
 import com.github.yumelira.yumebox.data.store.NetworkSettingsStorage
 import com.github.yumelira.yumebox.data.store.ProfilesStore
+import kotlinx.coroutines.delay
+import timber.log.Timber
 
 object ProxyAutoStartHelper {
 
@@ -40,44 +40,37 @@ object ProxyAutoStartHelper {
         clashManager: ClashManager,
         isBootCompleted: Boolean = false
     ) {
-        try {
+        runCatching {
             val automaticRestart = appSettingsStorage.automaticRestart.value
             if (!automaticRestart) {
-                Log.d(TAG, "自动启动已禁用")
                 return
             }
 
             if (clashManager.isRunning.value) {
-                Log.d(TAG, "代理已在运行，跳过自动启动")
                 return
             }
 
             val profileId = getProfileToStart(profilesStore)
             if (profileId == null) {
-                Log.w(TAG, "没有可用的配置文件，无法自动启动")
+                Timber.tag(TAG).w("没有可用的配置文件，无法自动启动")
                 return
             }
 
             if (isBootCompleted) {
-                Log.d(TAG, "开机自启：延迟 3 秒后启动...")
                 delay(3000)
             }
 
             val proxyMode = networkSettingsStorage.proxyMode.value
-            Log.d(TAG, "自动启动代理: profileId=$profileId, mode=$proxyMode")
-            
+
             val result = proxyConnectionService.startDirect(
-                profileId = profileId,
-                mode = proxyMode
+                profileId = profileId, mode = proxyMode
             )
-            
-            if (result.isSuccess) {
-                Log.d(TAG, "自动启动代理成功")
-            } else {
-                Log.e(TAG, "自动启动代理失败: ${result.exceptionOrNull()?.message}")
+
+            if (result.isFailure) {
+                Timber.tag(TAG).e("自动启动代理失败: ${result.exceptionOrNull()?.message}")
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "自动启动代理失败: ${e.message}", e)
+        }.onFailure { e ->
+            Timber.tag(TAG).e(e, "自动启动代理失败: ${e.message}")
         }
     }
 
@@ -86,20 +79,17 @@ object ProxyAutoStartHelper {
         if (lastUsedId.isNotEmpty()) {
             val lastUsedProfile = profilesStore.getAllProfiles().find { it.id == lastUsedId }
             if (lastUsedProfile != null) {
-                Log.d(TAG, "使用上次使用的配置: ${lastUsedProfile.name}")
                 return lastUsedId
             }
         }
 
         val enabledProfile = profilesStore.getAllProfiles().find { it.enabled }
         if (enabledProfile != null) {
-            Log.d(TAG, "使用已启用的配置: ${enabledProfile.name}")
             return enabledProfile.id
         }
 
         val firstProfile = profilesStore.getAllProfiles().firstOrNull()
         if (firstProfile != null) {
-            Log.d(TAG, "使用第一个配置: ${firstProfile.name}")
             return firstProfile.id
         }
 

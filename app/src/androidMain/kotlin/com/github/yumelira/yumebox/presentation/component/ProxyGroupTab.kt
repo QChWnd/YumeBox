@@ -34,8 +34,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import com.github.yumelira.yumebox.domain.model.ProxyGroupInfo
+import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -48,23 +48,23 @@ fun ProxyGroupTabs(
 ) {
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
-    
+
     val tabPositions = remember { mutableStateMapOf<Int, Pair<Float, Float>>() }
-    
+
     LaunchedEffect(selectedIndex, groups.size) {
         if (selectedIndex in groups.indices && tabPositions.containsKey(selectedIndex)) {
             val (tabPosition, tabWidth) = tabPositions[selectedIndex]!!
             val viewportWidth = scrollState.viewportSize.toFloat()
-            
+
             val targetScroll = (tabPosition + tabWidth / 2 - viewportWidth / 2)
                 .coerceIn(0f, scrollState.maxValue.toFloat())
-            
+
             coroutineScope.launch {
                 scrollState.animateScrollTo(targetScroll.toInt())
             }
         }
     }
-    
+
     Row(
         modifier = modifier
             .fillMaxWidth()

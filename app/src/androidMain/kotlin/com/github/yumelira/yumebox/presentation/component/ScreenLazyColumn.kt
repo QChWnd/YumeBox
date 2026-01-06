@@ -51,6 +51,7 @@ fun ScreenLazyColumn(
     modifier: Modifier = Modifier,
     bottomPadding: Dp = 0.dp,
     topPadding: Dp = 0.dp,
+<<<<<<< HEAD
     enableBottomBarAutoHide: Boolean = false,
     content: LazyListScope.() -> Unit,
 ) {
@@ -83,13 +84,29 @@ fun ScreenLazyColumn(
         }
     }
     
+=======
+    enableGlobalScroll: Boolean = true,
+    content: LazyListScope.() -> Unit,
+) {
+    val bottomBarScrollBehavior = if (enableGlobalScroll) LocalBottomBarScrollBehavior.current else null
+
+>>>>>>> upstream/Yume
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .scrollEndHaptic()
             .overScrollVertical()
+<<<<<<< HEAD
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         state = listState,
+=======
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .let { mod ->
+                if (enableGlobalScroll && bottomBarScrollBehavior != null) {
+                    mod.nestedScroll(bottomBarScrollBehavior.nestedScrollConnection)
+                } else mod
+            },
+>>>>>>> upstream/Yume
         contentPadding = PaddingValues(
             top = innerPadding.calculateTopPadding() + topPadding,
             bottom = innerPadding.calculateBottomPadding() + bottomPadding,

@@ -1,48 +1,43 @@
-/*
- * This file is part of YumeBox.
- *
- * YumeBox is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- * Copyright (c)  YumeLira 2025.
- *
- */
-
 package com.github.yumelira.yumebox.domain.facade
 
 import android.content.Intent
-import kotlinx.coroutines.flow.StateFlow
 import com.github.yumelira.yumebox.clash.manager.ClashManager
 import com.github.yumelira.yumebox.core.model.TunnelState
 import com.github.yumelira.yumebox.data.model.Profile
+import com.github.yumelira.yumebox.data.model.Selection
 import com.github.yumelira.yumebox.data.repository.ProxyConnectionService
+import com.github.yumelira.yumebox.data.repository.SelectionDao
 import com.github.yumelira.yumebox.domain.model.ProxyGroupInfo
 import com.github.yumelira.yumebox.domain.model.ProxyState
 import com.github.yumelira.yumebox.domain.model.RunningMode
 import com.github.yumelira.yumebox.domain.model.TrafficData
+import kotlinx.coroutines.flow.StateFlow
+import timber.log.Timber
 
 class ProxyFacade(
     private val clashManager: ClashManager,
-    private val proxyConnectionService: ProxyConnectionService
+    private val proxyConnectionService: ProxyConnectionService,
+    private val selectionDao: SelectionDao
 ) {
+
     val proxyState: StateFlow<ProxyState> = clashManager.proxyState
+
     val isRunning: StateFlow<Boolean> = clashManager.isRunning
+
     val currentProfile: StateFlow<Profile?> = clashManager.currentProfile
+
     val trafficNow: StateFlow<TrafficData> = clashManager.trafficNow
+
     val trafficTotal: StateFlow<TrafficData> = clashManager.trafficTotal
+
     val tunnelState: StateFlow<TunnelState?> = clashManager.tunnelState
-    val proxyGroups: StateFlow<List<ProxyGroupInfo>> = clashManager.proxyGroups
+
+    val proxyGroups: StateFlow<List<ProxyGroupInfo>> = clashManager.proxyStateRepository.proxyGroups
+
+    val isSyncing: StateFlow<Boolean> = clashManager.proxyStateRepository.isSyncing
+
     val runningMode: StateFlow<RunningMode> = clashManager.runningMode
+
     val logs = clashManager.logs
 
     suspend fun startProxy(profileId: String, forceTunMode: Boolean? = null): Result<Intent?> {
@@ -53,19 +48,45 @@ class ProxyFacade(
         proxyConnectionService.stop(runningMode.value)
     }
 
-    suspend fun refreshProxyGroups(skipCacheClear: Boolean = false): Result<Unit> {
-        return clashManager.refreshProxyGroups(skipCacheClear)
+    suspend fun selectProxy(groupName: String, proxyName: String): Result<Boolean> {
+        val result = clashManager.proxyStateRepository.selectProxy(groupName, proxyName)
+
+        if (result.isSuccess && result.getOrNull() == true) {
+            val profile = currentProfile.value
+            if (profile != null) {
+                try {
+                    selectionDao.setSelected(Selection(profile.id, groupName, proxyName))
+                } catch (e: Exception) {
+                    Timber.e(e, "保存节点选择失败")
+                }
+            }
+        }
+
+        return result
     }
 
-    suspend fun selectProxy(groupName: String, proxyName: String): Boolean {
-        return clashManager.selectProxy(groupName, proxyName)
+    suspend fun testDelay(groupName: String): Result<Unit> {
+        return clashManager.proxyStateRepository.testGroupDelay(groupName)
     }
 
-    fun testProxyDelay(groupName: String) {
-        clashManager.testProxyDelay(groupName)
+    suspend fun testAllDelay(): Result<Unit> {
+        return clashManager.proxyStateRepository.testAllDelay()
     }
 
     fun getCachedDelay(nodeName: String): Int? {
-        return clashManager.getCachedDelay(nodeName)
+        return clashManager.proxyStateRepository.getCachedDelay(nodeName)
     }
+
+    fun findGroup(groupName: String): ProxyGroupInfo? {
+        return clashManager.proxyStateRepository.findGroup(groupName)
+    }
+
+    fun getCurrentSelection(groupName: String): String? {
+        return clashManager.proxyStateRepository.getCurrentSelection(groupName)
+    }
+
+    fun isSelectableGroup(groupName: String): Boolean {
+        return clashManager.proxyStateRepository.isSelectableGroup(groupName)
+    }
+
 }

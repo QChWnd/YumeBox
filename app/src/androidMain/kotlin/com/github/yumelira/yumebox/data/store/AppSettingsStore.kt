@@ -20,23 +20,26 @@
 
 package com.github.yumelira.yumebox.data.store
 
-import com.tencent.mmkv.MMKV
-import com.github.yumelira.yumebox.presentation.theme.AppColorTheme
-import com.github.yumelira.yumebox.data.model.ThemeMode
 import com.github.yumelira.yumebox.data.model.AppLanguage
+import com.github.yumelira.yumebox.data.model.ThemeMode
+import com.github.yumelira.yumebox.presentation.theme.AppColorTheme
+import com.tencent.mmkv.MMKV
 
 class AppSettingsStorage(externalMmkv: MMKV) : MMKVPreference(externalMmkv = externalMmkv) {
 
     val themeMode by enumFlow(ThemeMode.Auto)
-    val colorTheme by enumFlow(AppColorTheme.ClassicMonochrome)
+    val colorTheme by enumFlow(AppColorTheme.Baima)
     val appLanguage by enumFlow(AppLanguage.System)
     val automaticRestart by boolFlow(false)
     val hideAppIcon by boolFlow(false)
     val showTrafficNotification by boolFlow(true)
-    val bottomBarFloating by boolFlow(true)
+    val bottomBarFloating by boolFlow(false)
     val showDivider by boolFlow(true)
+    val bottomBarAutoHide by boolFlow(true)
 
     val oneWord by strFlow("So 愛のために泣けるのは，君がそこにいるから")
 
     val oneWordAuthor by strFlow("THERE IS A REASON")
+
+    val customUserAgent by strFlow("")
 }

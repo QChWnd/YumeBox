@@ -24,14 +24,17 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+<<<<<<< HEAD
 import org.koin.androidx.compose.koinViewModel
 import com.ramcosta.composedestinations.generated.destinations.TrafficStatisticsScreenDestination
+=======
+>>>>>>> upstream/Yume
 import com.github.yumelira.yumebox.common.AppConstants
 import com.github.yumelira.yumebox.presentation.component.LocalNavigator
 import com.github.yumelira.yumebox.presentation.component.ScreenLazyColumn
@@ -40,7 +43,15 @@ import com.github.yumelira.yumebox.presentation.component.combinePaddingValues
 import com.github.yumelira.yumebox.presentation.screen.home.HomeIdleContent
 import com.github.yumelira.yumebox.presentation.screen.home.HomeRunningContent
 import com.github.yumelira.yumebox.presentation.viewmodel.HomeViewModel
+<<<<<<< HEAD
 import top.yukonga.miuix.kmp.basic.*
+=======
+import com.ramcosta.composedestinations.generated.destinations.TrafficStatisticsScreenDestination
+import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.basic.Scaffold
+>>>>>>> upstream/Yume
 
 private enum class HomeDisplayState {
     Idle,
@@ -62,6 +73,11 @@ fun HomePager(mainInnerPadding: PaddingValues) {
     val selectedServerName by homeViewModel.selectedServerName.collectAsState()
     val selectedServerPing by homeViewModel.selectedServerPing.collectAsState()
     val speedHistory by homeViewModel.speedHistory.collectAsState()
+<<<<<<< HEAD
+=======
+
+    val coroutineScope = rememberCoroutineScope()
+>>>>>>> upstream/Yume
 
     val displayState = if (displayRunning) HomeDisplayState.Running else HomeDisplayState.Idle
 
@@ -88,6 +104,7 @@ fun HomePager(mainInnerPadding: PaddingValues) {
     Scaffold(
         topBar = { TopBar(title = "YumeBox", scrollBehavior = scrollBehavior) },
     ) { innerPadding ->
+<<<<<<< HEAD
         ScreenLazyColumn(
             scrollBehavior = scrollBehavior,
             innerPadding = combinePaddingValues(innerPadding, mainInnerPadding),
@@ -128,6 +145,53 @@ fun HomePager(mainInnerPadding: PaddingValues) {
                         }
                     }
                 }
+=======
+        Box(modifier = Modifier.fillMaxSize()) {
+            ScreenLazyColumn(
+                scrollBehavior = scrollBehavior,
+                innerPadding = combinePaddingValues(innerPadding, mainInnerPadding),
+            ) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppConstants.UI.DEFAULT_HORIZONTAL_PADDING)
+                            .padding(top = AppConstants.UI.DEFAULT_VERTICAL_SPACING),
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.spacedBy(AppConstants.UI.DEFAULT_VERTICAL_SPACING)
+                    ) {
+                        AnimatedContent(
+                            targetState = displayState,
+                            transitionSpec = { createHomeTransitionSpec() },
+                            label = "HomeContentTransition"
+                        ) { state ->
+                            when (state) {
+                                HomeDisplayState.Idle -> HomeIdleContent(
+                                    oneWord = oneWord,
+                                    author = oneWordAuthor
+                                )
+
+                                HomeDisplayState.Running -> HomeRunningContent(
+                                    trafficNow = trafficNow,
+                                    profileName = currentProfile?.name,
+                                    tunnelMode = tunnelState?.mode,
+                                    serverName = selectedServerName,
+                                    serverPing = selectedServerPing,
+                                    ipMonitoringState = ipMonitoringState,
+                                    speedHistory = speedHistory,
+                                    onChartClick = {
+                                        navigator.navigate(TrafficStatisticsScreenDestination) {
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item { Spacer(modifier = Modifier.height(32.dp)) }
+>>>>>>> upstream/Yume
             }
 
             item { Spacer(modifier = Modifier.height(32.dp)) }
@@ -141,16 +205,17 @@ private fun AnimatedContentTransitionScope<HomeDisplayState>.createHomeTransitio
     return when {
         targetState == HomeDisplayState.Idle -> {
             (fadeIn(animationSpec = tween(animDuration)) +
-             scaleIn(initialScale = 0.92f, animationSpec = tween(animDuration))).togetherWith(
+                    scaleIn(initialScale = 0.92f, animationSpec = tween(animDuration))).togetherWith(
                 fadeOut(animationSpec = tween(animDuration)) +
-                scaleOut(targetScale = 1.08f, animationSpec = tween(animDuration))
+                        scaleOut(targetScale = 1.08f, animationSpec = tween(animDuration))
             )
         }
+
         else -> {
             (fadeIn(animationSpec = tween(animDuration)) +
-             scaleIn(initialScale = 0.92f, animationSpec = tween(animDuration))).togetherWith(
+                    scaleIn(initialScale = 0.92f, animationSpec = tween(animDuration))).togetherWith(
                 fadeOut(animationSpec = tween(animDuration)) +
-                scaleOut(targetScale = 1.08f, animationSpec = tween(animDuration))
+                        scaleOut(targetScale = 1.08f, animationSpec = tween(animDuration))
             )
         }
     }

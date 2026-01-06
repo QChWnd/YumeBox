@@ -21,25 +21,28 @@
 package com.github.yumelira.yumebox.presentation.screen
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.generated.destinations.LogDetailScreenDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import kotlinx.coroutines.delay
-import org.koin.androidx.compose.koinViewModel
 import com.github.yumelira.yumebox.presentation.component.Card
 import com.github.yumelira.yumebox.presentation.component.CenteredText
 import com.github.yumelira.yumebox.presentation.component.NavigationBackIcon
 import com.github.yumelira.yumebox.presentation.component.ScreenLazyColumn
 import com.github.yumelira.yumebox.presentation.component.TopBar
 import com.github.yumelira.yumebox.presentation.viewmodel.LogViewModel
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.generated.destinations.LogDetailScreenDestination
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import dev.oom_wg.purejoy.mlang.MLang
+import kotlinx.coroutines.delay
+import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -53,7 +56,6 @@ import top.yukonga.miuix.kmp.icon.icons.useful.Play
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.text.SimpleDateFormat
 import java.util.*
-import dev.oom_wg.purejoy.mlang.MLang
 
 @Composable
 @Destination<RootGraph>
@@ -151,7 +153,7 @@ private fun LogFileItem(
         visible = true
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "recording_pulse")
+    rememberInfiniteTransition(label = "recording_pulse")
 
     val animatedSize by animateFloatAsState(
         targetValue = fileInfo.size.toFloat(),
@@ -170,9 +172,7 @@ private fun LogFileItem(
         )
     ) {
         SuperArrow(
-            title = fileInfo.name,
-            summary = summary,
-            onClick = onClick,
+            title = fileInfo.name, summary = summary, onClick = onClick,
             rightActions = {
                 if (fileInfo.isRecording) {
                     Text(
@@ -180,7 +180,7 @@ private fun LogFileItem(
                         modifier = Modifier.padding(end = 16.dp),
                         style = MiuixTheme.textStyles.body2,
                     )
-                } else null
+                }
             }
         )
     }

@@ -20,21 +20,29 @@
 
 package com.github.yumelira.yumebox.data.store
 
+<<<<<<< HEAD
 import com.tencent.mmkv.MMKV
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
+=======
+>>>>>>> upstream/Yume
 import com.github.yumelira.yumebox.data.model.DailyTrafficSummary
 import com.github.yumelira.yumebox.data.model.ProfileTrafficUsage
 import com.github.yumelira.yumebox.data.model.TimeSlot
 import com.github.yumelira.yumebox.data.model.TrafficSlotData
-import java.util.Calendar
+import com.tencent.mmkv.MMKV
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.json.Json
+import java.util.*
 
 class TrafficStatisticsStore(private val mmkv: MMKV) {
 
-    private val json = Json { 
-        ignoreUnknownKeys = true 
+    private val json = Json {
+        ignoreUnknownKeys = true
         encodeDefaults = true
     }
 

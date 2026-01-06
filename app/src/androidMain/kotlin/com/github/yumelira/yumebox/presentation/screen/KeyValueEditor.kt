@@ -20,6 +20,7 @@
 
 package com.github.yumelira.yumebox.presentation.screen
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,16 +30,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import com.github.yumelira.yumebox.presentation.component.*
+import com.github.yumelira.yumebox.presentation.component.Card
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import com.github.yumelira.yumebox.presentation.component.Card
-import com.github.yumelira.yumebox.presentation.component.CenteredText
-import com.github.yumelira.yumebox.presentation.component.ConfirmDialogSimple
-import com.github.yumelira.yumebox.presentation.component.DialogButtonRow
-import com.github.yumelira.yumebox.presentation.component.NavigationBackIcon
-import com.github.yumelira.yumebox.presentation.component.SmallTitle
-import com.github.yumelira.yumebox.presentation.component.TopBar
+import dev.oom_wg.purejoy.mlang.MLang
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.extra.SuperBottomSheet
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -46,7 +43,6 @@ import top.yukonga.miuix.kmp.icon.icons.useful.Delete
 import top.yukonga.miuix.kmp.icon.icons.useful.New
 import top.yukonga.miuix.kmp.icon.icons.useful.Restore
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import dev.oom_wg.purejoy.mlang.MLang
 
 object EditorDataHolder {
     var listEditorTitle: String = ""
@@ -102,6 +98,7 @@ object EditorDataHolder {
     }
 }
 
+@SuppressLint("MutableCollectionMutableState")
 @Destination<RootGraph>
 @Composable
 fun StringListEditorScreen(
@@ -120,8 +117,7 @@ fun StringListEditorScreen(
     DisposableEffect(Unit) {
         onDispose {
             EditorDataHolder.listEditorCallback?.invoke(
-                editableItems.takeIf { it.isNotEmpty() }
-            )
+                editableItems.takeIf { it.isNotEmpty() })
             EditorDataHolder.clearListEditor()
         }
     }
@@ -134,8 +130,7 @@ fun StringListEditorScreen(
                 navigationIcon = { NavigationBackIcon(navigator) },
                 actions = {
                     IconButton(
-                        onClick = { showResetDialog = true },
-                        modifier = Modifier.padding(end = 16.dp)
+                        onClick = { showResetDialog = true }, modifier = Modifier.padding(end = 16.dp)
                     ) {
                         Icon(
                             imageVector = MiuixIcons.Useful.Restore,
@@ -144,8 +139,7 @@ fun StringListEditorScreen(
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     IconButton(
-                        onClick = { showAddDialog = true },
-                        modifier = Modifier.padding(end = 24.dp)
+                        onClick = { showAddDialog = true }, modifier = Modifier.padding(end = 24.dp)
                     ) {
                         Icon(
                             imageVector = MiuixIcons.Useful.New,
@@ -257,8 +251,7 @@ fun KeyValueEditorScreen(
     DisposableEffect(Unit) {
         onDispose {
             EditorDataHolder.mapEditorCallback?.invoke(
-                editableItems.takeIf { it.isNotEmpty() }
-            )
+                editableItems.takeIf { it.isNotEmpty() })
             EditorDataHolder.clearMapEditor()
         }
     }
@@ -271,8 +264,7 @@ fun KeyValueEditorScreen(
                 navigationIcon = { NavigationBackIcon(navigator) },
                 actions = {
                     IconButton(
-                        onClick = { showResetDialog = true },
-                        modifier = Modifier.padding(end = 16.dp)
+                        onClick = { showResetDialog = true }, modifier = Modifier.padding(end = 16.dp)
                     ) {
                         Icon(
                             imageVector = MiuixIcons.Useful.Restore,
@@ -281,8 +273,7 @@ fun KeyValueEditorScreen(
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     IconButton(
-                        onClick = { showAddDialog = true },
-                        modifier = Modifier.padding(end = 24.dp)
+                        onClick = { showAddDialog = true }, modifier = Modifier.padding(end = 24.dp)
                     ) {
                         Icon(
                             imageVector = MiuixIcons.Useful.New,
@@ -578,8 +569,8 @@ private fun KeyValueInputDialog(
 
                     when {
                         trimmedKey.isBlank() -> keyError = MLang.Component.Editor.Error.KeyEmpty
-                        trimmedKey != currentEditingKey && existingKeys.contains(trimmedKey) ->
-                            keyError = MLang.Component.Editor.Error.KeyExists
+                        trimmedKey != currentEditingKey && existingKeys.contains(trimmedKey) -> keyError =
+                            MLang.Component.Editor.Error.KeyExists
 
                         else -> onConfirm(trimmedKey, trimmedValue)
                     }

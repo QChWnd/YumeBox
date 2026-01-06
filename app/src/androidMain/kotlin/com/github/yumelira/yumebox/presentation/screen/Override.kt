@@ -21,39 +21,25 @@
 package com.github.yumelira.yumebox.presentation.screen
 
 import androidx.compose.foundation.layout.padding
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.ramcosta.composedestinations.annotation.Destination
-import com.ramcosta.composedestinations.annotation.RootGraph
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import org.koin.androidx.compose.koinViewModel
 import com.github.yumelira.yumebox.core.model.ConfigurationOverride
 import com.github.yumelira.yumebox.core.model.LogMessage
 import com.github.yumelira.yumebox.core.model.TunnelState
-import com.github.yumelira.yumebox.presentation.component.Card
-import com.github.yumelira.yumebox.presentation.component.ConfirmDialog
-import com.github.yumelira.yumebox.presentation.component.NullableBooleanSelector
-import com.github.yumelira.yumebox.presentation.component.NullableEnumSelector
-import com.github.yumelira.yumebox.presentation.component.PortInput
-import com.github.yumelira.yumebox.presentation.component.ScreenLazyColumn
-import com.github.yumelira.yumebox.presentation.component.SmallTitle
-import com.github.yumelira.yumebox.presentation.component.StringInput
-import com.github.yumelira.yumebox.presentation.component.StringListInput
-import com.github.yumelira.yumebox.presentation.component.StringMapInput
-import com.github.yumelira.yumebox.presentation.component.TopBar
+import com.github.yumelira.yumebox.presentation.component.*
 import com.github.yumelira.yumebox.presentation.viewmodel.OverrideViewModel
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import dev.oom_wg.purejoy.mlang.MLang
+import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.icons.useful.Restore
-import dev.oom_wg.purejoy.mlang.MLang
 
 @Composable
 @Destination<RootGraph>
@@ -123,15 +109,34 @@ fun OverrideScreen(navigator: DestinationsNavigator) {
                     NullableEnumSelector(
                         title = MLang.Override.General.ProxyMode,
                         value = configuration.mode,
-                        items = listOf(MLang.Component.Selector.NotModify, MLang.Proxy.Mode.Direct, MLang.Proxy.Mode.Global, MLang.Proxy.Mode.Rule),
+                        items = listOf(
+                            MLang.Component.Selector.NotModify,
+                            MLang.Proxy.Mode.Direct,
+                            MLang.Proxy.Mode.Global,
+                            MLang.Proxy.Mode.Rule
+                        ),
                         values = listOf(null, TunnelState.Mode.Direct, TunnelState.Mode.Global, TunnelState.Mode.Rule),
                         onValueChange = { viewModel.setMode(it) },
                     )
                     NullableEnumSelector(
                         title = MLang.Override.General.LogLevel,
                         value = configuration.logLevel,
-                        items = listOf(MLang.Component.Selector.NotModify, "Info", "Warning", "Error", "Debug", "Silent"),
-                        values = listOf(null, LogMessage.Level.Info, LogMessage.Level.Warning, LogMessage.Level.Error, LogMessage.Level.Debug, LogMessage.Level.Silent),
+                        items = listOf(
+                            MLang.Component.Selector.NotModify,
+                            "Info",
+                            "Warning",
+                            "Error",
+                            "Debug",
+                            "Silent"
+                        ),
+                        values = listOf(
+                            null,
+                            LogMessage.Level.Info,
+                            LogMessage.Level.Warning,
+                            LogMessage.Level.Error,
+                            LogMessage.Level.Debug,
+                            LogMessage.Level.Silent
+                        ),
                         onValueChange = { viewModel.setLogLevel(it) },
                     )
                 }
@@ -200,7 +205,11 @@ fun OverrideScreen(navigator: DestinationsNavigator) {
                     NullableEnumSelector(
                         title = MLang.Override.Dns.Policy,
                         value = configuration.dns.enable,
-                        items = listOf(MLang.Override.Dns.PolicyNotModify, MLang.Override.Dns.PolicyForceEnable, MLang.Override.Dns.PolicyUseBuiltin),
+                        items = listOf(
+                            MLang.Override.Dns.PolicyNotModify,
+                            MLang.Override.Dns.PolicyForceEnable,
+                            MLang.Override.Dns.PolicyUseBuiltin
+                        ),
                         values = listOf(null, true, false),
                         onValueChange = { viewModel.setDnsEnable(it) },
                     )
@@ -234,8 +243,18 @@ fun OverrideScreen(navigator: DestinationsNavigator) {
                         NullableEnumSelector(
                             title = MLang.Override.Dns.EnhancedMode,
                             value = configuration.dns.enhancedMode,
-                            items = listOf(MLang.Override.Dns.EnhancedNotModify, MLang.Override.Dns.EnhancedDisable, MLang.Override.Dns.EnhancedFakeip, MLang.Override.Dns.EnhancedMapping),
-                            values = listOf(null, ConfigurationOverride.DnsEnhancedMode.None, ConfigurationOverride.DnsEnhancedMode.FakeIp, ConfigurationOverride.DnsEnhancedMode.Mapping),
+                            items = listOf(
+                                MLang.Override.Dns.EnhancedNotModify,
+                                MLang.Override.Dns.EnhancedDisable,
+                                MLang.Override.Dns.EnhancedFakeip,
+                                MLang.Override.Dns.EnhancedMapping
+                            ),
+                            values = listOf(
+                                null,
+                                ConfigurationOverride.DnsEnhancedMode.None,
+                                ConfigurationOverride.DnsEnhancedMode.FakeIp,
+                                ConfigurationOverride.DnsEnhancedMode.Mapping
+                            ),
                             onValueChange = { viewModel.setDnsEnhancedMode(it) },
                         )
                         StringListInput(
@@ -269,8 +288,16 @@ fun OverrideScreen(navigator: DestinationsNavigator) {
                         NullableEnumSelector(
                             title = MLang.Override.Dns.FakeipFilterMode,
                             value = configuration.dns.fakeIPFilterMode,
-                            items = listOf(MLang.Override.Dns.EnhancedNotModify, MLang.Override.Dns.FakeipBlacklist, MLang.Override.Dns.FakeipWhitelist),
-                            values = listOf(null, ConfigurationOverride.FilterMode.BlackList, ConfigurationOverride.FilterMode.WhiteList),
+                            items = listOf(
+                                MLang.Override.Dns.EnhancedNotModify,
+                                MLang.Override.Dns.FakeipBlacklist,
+                                MLang.Override.Dns.FakeipWhitelist
+                            ),
+                            values = listOf(
+                                null,
+                                ConfigurationOverride.FilterMode.BlackList,
+                                ConfigurationOverride.FilterMode.WhiteList
+                            ),
                             onValueChange = { viewModel.setDnsFakeIpFilterMode(it) },
                         )
                         NullableBooleanSelector(

@@ -22,8 +22,8 @@ package com.github.yumelira.yumebox.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.github.yumelira.yumebox.data.model.Selection
 import androidx.core.content.edit
+import com.github.yumelira.yumebox.data.model.Selection
 
 class SelectionDao(context: Context) {
     companion object {
@@ -40,26 +40,7 @@ class SelectionDao(context: Context) {
             prefs.edit {
                 putString(key, selection.selectedNode)
             }
-        } catch (e: Exception) {
-        }
-    }
-
-    fun getSelected(profileId: String, proxyGroup: String): String? {
-        return try {
-            val key = makeKey(profileId, proxyGroup)
-            prefs.getString(key, null)
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    fun removeSelected(profileId: String, proxyGroup: String) {
-        try {
-            val key = makeKey(profileId, proxyGroup)
-            prefs.edit {
-                remove(key)
-            }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
         }
     }
 
@@ -76,36 +57,8 @@ class SelectionDao(context: Context) {
             }
 
             selections
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyMap()
-        }
-    }
-
-    fun clearAllSelections(profileId: String) {
-        try {
-            val prefix = makeKeyPrefix(profileId)
-            prefs.edit {
-
-                prefs.all.keys
-                    .filter { it.startsWith(prefix) }
-                    .forEach { remove(it) }
-
-            }
-        } catch (e: Exception) {
-        }
-    }
-
-    fun setSelections(profileId: String, selections: Map<String, String>) {
-        try {
-            prefs.edit {
-
-                selections.forEach { (proxyGroup, selectedNode) ->
-                    val key = makeKey(profileId, proxyGroup)
-                    putString(key, selectedNode)
-                }
-
-            }
-        } catch (e: Exception) {
         }
     }
 

@@ -23,15 +23,14 @@ package com.github.yumelira.yumebox.presentation.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import com.github.yumelira.yumebox.data.model.DailyTrafficSummary
 import com.github.yumelira.yumebox.data.model.ProfileTrafficUsage
 import com.github.yumelira.yumebox.data.model.StatisticsTimeRange
 import com.github.yumelira.yumebox.data.model.TimeSlot
 import com.github.yumelira.yumebox.data.store.TrafficStatisticsStore
 import com.github.yumelira.yumebox.presentation.component.BarChartItem
-import dev.oom_wg.purejoy.mlang.MLang
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -55,7 +54,7 @@ class TrafficStatisticsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DailyTrafficSummary.EMPTY)
 
     val weekSummary: StateFlow<Long> = trafficStatisticsStore.dailySummaries
-        .map { 
+        .map {
             trafficStatisticsStore.getDailySummaries(7).sumOf { it.total }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
@@ -91,12 +90,6 @@ class TrafficStatisticsViewModel(
         _selectedBarIndex.value = index
     }
 
-    fun clearStatistics() {
-        viewModelScope.launch {
-            trafficStatisticsStore.clearAll()
-        }
-    }
-
     private fun getTodayHourlyChartItems(): List<BarChartItem> {
         val hourlyData = trafficStatisticsStore.getTodayHourlyData()
         val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
@@ -120,7 +113,7 @@ class TrafficStatisticsViewModel(
         return summaries.map { summary ->
             val calendar = Calendar.getInstance().apply { timeInMillis = summary.dateMillis }
             val label = if (summary.dateMillis == todayKey) {
-                MLang.TrafficStatistics.TimeRange.Today
+                "今日"
             } else {
                 dateFormat.format(calendar.time)
             }

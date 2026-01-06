@@ -20,9 +20,8 @@
 
 package com.github.yumelira.yumebox.common.util
 
-import android.content.Context
-import android.content.Intent
-import androidx.core.content.FileProvider
+import com.github.yumelira.yumebox.App
+import com.github.yumelira.yumebox.data.store.AppSettingsStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Headers
@@ -30,20 +29,15 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okio.buffer
 import okio.sink
-import com.github.yumelira.yumebox.App
-import com.github.yumelira.yumebox.BuildConfig
-import com.github.yumelira.yumebox.core.bridge.Bridge
-import timber.log.Timber
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import java.io.File
 import java.net.URLDecoder
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 data class DownloadProgress(
-    val progress: Int,
-    val currentSize: Long,
-    val totalSize: Long,
-    val speed: String
+    val progress: Int, val currentSize: Long, val totalSize: Long, val speed: String
 )
 
 data class SubscriptionInfo(
@@ -68,10 +62,17 @@ object DownloadUtil {
     }
     private const val UPDATE_INTERVAL_MS = 500L
 
+    private val appSettings: AppSettingsStorage by inject()
+
+    private fun getUserAgent(): String {
+        val customUA = appSettings.customUserAgent.value
+        return customUA.ifEmpty { DEFAULT_USER_AGENT }
+    }
+
     private fun parseFilenameFromContentDisposition(headers: Headers): String? {
         val contentDisposition = headers["Content-Disposition"] ?: return null
 
-        return try {
+        return runCatching {
             if (contentDisposition.contains("filename*=")) {
                 val regex = """filename\*=([^']*)'([^']*)'([^;]+)""".toRegex(RegexOption.IGNORE_CASE)
                 regex.find(contentDisposition)?.let { match ->
@@ -84,55 +85,34 @@ object DownloadUtil {
                     match.groupValues[1].trim('"', '\'')
                 }
             }
-        } catch (e: Exception) {
-            null
-        }
+        }.getOrNull()
     }
 
-    private fun parseSubscriptionInfo(headers: Headers, remoteUrl: String? = null): SubscriptionInfo {
-        fun parseTrafficToBytes(trafficStr: String): Long {
-            val regex = """(\d+\.?\d*)\s*([KMGT]?B)""".toRegex(RegexOption.IGNORE_CASE)
-            val match = regex.find(trafficStr) ?: return 0L
+    private fun parseSubscriptionInfo(headers: Headers): SubscriptionInfo {
 
-            val value = match.groupValues[1].toDoubleOrNull() ?: return 0L
-            val unit = match.groupValues[2].uppercase()
+        fun parseExpireDate(expireStr: String): Long? = runCatching {
+            when {
+                expireStr.matches(Regex("\\d+")) -> expireStr.toLong() * 1000
+                expireStr.contains("-") -> {
 
-            return when (unit) {
-                "KB" -> (value * 1024).toLong()
-                "MB" -> (value * 1024 * 1024).toLong()
-                "GB" -> (value * 1024 * 1024 * 1024).toLong()
-                "TB" -> (value * 1024 * 1024 * 1024 * 1024).toLong()
-                "B" -> value.toLong()
-                else -> 0L
-            }
-        }
+                    val parts = expireStr.split("-")
+                    if (parts.size >= 3) {
+                        val year = parts[0].toIntOrNull()
+                        val month = parts[1].toIntOrNull()
+                        val day = parts[2].toIntOrNull()
 
-        fun parseExpireDate(expireStr: String): Long? {
-            return try {
-                when {
-                    expireStr.matches(Regex("\\d+")) -> expireStr.toLong() * 1000
-                    expireStr.contains("-") -> {
-
-                        val parts = expireStr.split("-")
-                        if (parts.size >= 3) {
-                            val year = parts[0].toIntOrNull()
-                            val month = parts[1].toIntOrNull()
-                            val day = parts[2].toIntOrNull()
-
-                            if (year != null && month != null && day != null) {
-                                val calendar = Calendar.getInstance()
-                                calendar.set(year, month - 1, day, 0, 0, 0)
-                                calendar.set(Calendar.MILLISECOND, 0)
-                                calendar.timeInMillis
-                            } else null
+                        if (year != null && month != null && day != null) {
+                            val calendar = java.util.Calendar.getInstance()
+                            calendar.set(year, month - 1, day, 0, 0, 0)
+                            calendar.set(java.util.Calendar.MILLISECOND, 0)
+                            calendar.timeInMillis
                         } else null
-                    }
-                    else -> null
+                    } else null
                 }
-            } catch (e: Exception) {
-                null
+
+                else -> null
             }
-        }
+        }.getOrNull()
 
         return SubscriptionInfo(
             upload = headers["Subscription-Userinfo"]?.let { userInfo ->
@@ -159,32 +139,25 @@ object DownloadUtil {
 
             filename = parseFilenameFromContentDisposition(headers),
 
-            interval = headers["Profile-Update-Interval"]?.toIntOrNull() ?:
-                      headers["Subscription-Update-Interval"]?.toIntOrNull() ?: 24
+            interval = headers["Profile-Update-Interval"]?.toIntOrNull()
+                ?: headers["Subscription-Update-Interval"]?.toIntOrNull() ?: 24
         )
     }
 
     private val client: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .followRedirects(true)
-            .build()
+        OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS)
+            .followRedirects(true).build()
     }
 
     suspend fun download(
-        url: String,
-        targetFile: File,
-        onProgress: ((DownloadProgress) -> Unit)? = null
+        url: String, targetFile: File, onProgress: ((DownloadProgress) -> Unit)? = null
     ): Boolean = withContext(Dispatchers.IO) {
         val (success, _) = downloadWithSubscriptionInfo(url, targetFile, onProgress)
         success
     }
 
     suspend fun downloadWithSubscriptionInfo(
-        url: String,
-        targetFile: File,
-        onProgress: ((DownloadProgress) -> Unit)? = null
+        url: String, targetFile: File, onProgress: ((DownloadProgress) -> Unit)? = null
     ): Pair<Boolean, SubscriptionInfo?> = withContext(Dispatchers.IO) {
         var success = false
         var subscriptionInfo: SubscriptionInfo? = null
@@ -204,7 +177,7 @@ object DownloadUtil {
             }
 
 
-            subscriptionInfo = parseSubscriptionInfo(response.headers, url)
+            subscriptionInfo = parseSubscriptionInfo(response.headers)
 
             val body = response.body
             val contentLength = body.contentLength()
@@ -258,10 +231,7 @@ object DownloadUtil {
     }
 
     suspend fun downloadAndExtract(
-        url: String,
-        targetDir: File,
-        onProgress: ((DownloadProgress) -> Unit)? = null,
-        flattenRootDir: Boolean = true
+        url: String, targetDir: File, onProgress: ((DownloadProgress) -> Unit)? = null, flattenRootDir: Boolean = true
     ): Boolean = withContext(Dispatchers.IO) {
 
         val fileExtension = when {
@@ -340,43 +310,5 @@ object DownloadUtil {
         }
 
         source.delete()
-    }
-
-    suspend fun downloadAndInstallApk(
-        context: Context,
-        url: String,
-        onProgress: ((DownloadProgress) -> Unit)? = null
-    ): Boolean = withContext(Dispatchers.IO) {
-        val apkFile = File(context.cacheDir, "update_${System.currentTimeMillis()}.apk")
-        val downloadSuccess = download(url, apkFile, onProgress)
-
-        if (downloadSuccess) {
-            installApk(context, apkFile)
-        } else {
-            false
-        }
-    }
-
-    private suspend fun installApk(context: Context, apkFile: File): Boolean = withContext(Dispatchers.Main) {
-        try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                val uri =
-                    FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.fileprovider",
-                        apkFile
-                    )
-
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-
-            context.startActivity(intent)
-            true
-        } catch (e: Exception) {
-            Timber.e(e, "安装APK失败")
-            false
-        }
     }
 }

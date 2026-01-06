@@ -26,27 +26,15 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+<<<<<<< HEAD
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -54,14 +42,23 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+=======
+>>>>>>> upstream/Yume
 import com.github.yumelira.yumebox.core.model.LogMessage
-import com.github.yumelira.yumebox.service.LogRecordService
 import com.github.yumelira.yumebox.presentation.component.Card
 import com.github.yumelira.yumebox.presentation.component.CenteredText
 import com.github.yumelira.yumebox.presentation.component.NavigationBackIcon
 import com.github.yumelira.yumebox.presentation.component.ScreenLazyColumn
 import com.github.yumelira.yumebox.presentation.component.TopBar
 import com.github.yumelira.yumebox.presentation.viewmodel.LogViewModel
+import com.github.yumelira.yumebox.service.LogRecordService
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -72,8 +69,11 @@ import top.yukonga.miuix.kmp.icon.icons.useful.Cancel
 import top.yukonga.miuix.kmp.icon.icons.useful.Delete
 import top.yukonga.miuix.kmp.icon.icons.useful.Save
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+<<<<<<< HEAD
 import dev.oom_wg.purejoy.mlang.MLang
 import timber.log.Timber
+=======
+>>>>>>> upstream/Yume
 import java.io.File
 
 @Composable
@@ -129,7 +129,7 @@ fun LogDetailScreen(
     Scaffold(
         topBar = {
             TopBar(
-                title = if (isCurrentFileRecording) MLang.Log.Detail.RealTimeLog else file.name,
+                title = if (isCurrentFileRecording) "实时日志" else file.name,
                 scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     NavigationBackIcon(navigator = navigator)
@@ -144,7 +144,7 @@ fun LogDetailScreen(
                         ) {
                             Icon(
                                 imageVector = MiuixIcons.Useful.Cancel,
-                                contentDescription = MLang.Log.Action.Pause,
+                                contentDescription = "暂停记录",
                             )
                         }
                     } else {
@@ -156,7 +156,7 @@ fun LogDetailScreen(
                         ) {
                             Icon(
                                 imageVector = MiuixIcons.Useful.Save,
-                                contentDescription = MLang.Log.Action.Save,
+                                contentDescription = "保存",
                             )
                         }
                         IconButton(
@@ -168,7 +168,7 @@ fun LogDetailScreen(
                         ) {
                             Icon(
                                 imageVector = MiuixIcons.Useful.Delete,
-                                contentDescription = MLang.Log.Action.Delete,
+                                contentDescription = "删除",
                             )
                         }
                     }
@@ -179,16 +179,18 @@ fun LogDetailScreen(
         when {
             isLoading -> {
                 CenteredText(
-                    firstLine = MLang.Log.Detail.Loading,
+                    firstLine = "加载中...",
                     secondLine = ""
                 )
             }
+
             logEntries.isEmpty() -> {
                 CenteredText(
-                    firstLine = if (isCurrentFileRecording) MLang.Log.Detail.WaitingLog else MLang.Log.Detail.LogEmpty,
-                    secondLine = if (isCurrentFileRecording) MLang.Log.Detail.WillShowWhenGenerated else MLang.Log.Detail.NoLogContent
+                    firstLine = if (isCurrentFileRecording) "等待日志..." else "日志为空",
+                    secondLine = if (isCurrentFileRecording) "日志将在产生时显示" else "该文件没有日志内容"
                 )
             }
+
             else -> {
                 ScreenLazyColumn(
                     scrollBehavior = scrollBehavior,

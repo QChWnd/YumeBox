@@ -6,13 +6,14 @@
 
 ## YumeBox
 
-[![Latest release](https://img.shields.io/github/v/release/YumeYuka/YumeBox?label=Release&logo=github)](https://github.com/YumeYuka/YumeBox/releases/latest)
-[![GitHub License](https://img.shields.io/github/license/YumeYuka/YumeBox?logo=gnu)](/LICENSE)
-![Downloads](https://img.shields.io/github/downloads/YumeYuka/YumeBox/total)
+[![Latest release](https://img.shields.io/github/v/release/YumeLira/YumeBox?label=Release&logo=github)](https://github.com/YumeLira/YumeBox/releases/latest)
+[![GitHub License](https://img.shields.io/github/license/YumeLira/YumeBox?logo=gnu)](/LICENSE)
+![Downloads](https://img.shields.io/github/downloads/YumeLira/YumeBox/total)
 
 **An open-source Android client based on the [mihomo](https://github.com/MetaCubeX/mihomo) kernel**
 
 </div>
+
 
 ## Features
 

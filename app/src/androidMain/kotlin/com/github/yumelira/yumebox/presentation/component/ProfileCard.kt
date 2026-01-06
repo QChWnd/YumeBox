@@ -1,25 +1,6 @@
-/*
- * This file is part of YumeBox.
- *
- * YumeBox is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- * Copyright (c)  YumeLira 2025.
- *
- */
-
 package com.github.yumelira.yumebox.presentation.component
 
+<<<<<<< HEAD
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
@@ -27,10 +8,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+=======
+import android.annotation.SuppressLint
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+>>>>>>> upstream/Yume
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.github.yumelira.yumebox.clash.isConfigSaved
 import com.github.yumelira.yumebox.data.model.Profile
 import top.yukonga.miuix.kmp.basic.*
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -39,32 +31,41 @@ import top.yukonga.miuix.kmp.icon.icons.useful.Edit
 import top.yukonga.miuix.kmp.icon.icons.useful.Refresh
 import top.yukonga.miuix.kmp.icon.icons.useful.Share
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+<<<<<<< HEAD
 import dev.oom_wg.purejoy.mlang.MLang
 import java.io.File
+=======
+import java.io.File
+
+>>>>>>> upstream/Yume
 
 @Composable
 fun ProfileCard(
     profile: Profile,
+    workDir: File,
     isDownloading: Boolean = false,
     onExport: (Profile) -> Unit,
     onUpdate: (Profile) -> Unit,
     onDelete: (Profile) -> Unit,
     onEdit: (Profile) -> Unit,
     onToggleEnabled: (Profile) -> Unit,
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val colorScheme = MiuixTheme.colorScheme
-
 
     val isDark = isSystemInDarkTheme()
     val secondaryContainer = colorScheme.secondaryContainer.copy(alpha = 0.8f)
-    val actionIconTint = remember(isDark) { colorScheme.onSurface.copy(alpha = if (isDark) 0.7f else 0.9f) }
+    val actionIconTint =
+        remember(isDark) { colorScheme.onSurface.copy(alpha = if (isDark) 0.7f else 0.9f) }
 
+    val isConfigSaved = remember(profile.id, profile.updatedAt) {
+        profile.isConfigSaved(workDir)
+    }
 
     val updateBg = remember(colorScheme) { colorScheme.tertiaryContainer.copy(alpha = 0.6f) }
     val updateTint = remember(colorScheme) { colorScheme.onTertiaryContainer.copy(alpha = 0.8f) }
 
+<<<<<<< HEAD
     val isConfigSaved = remember(profile) {
         val importedDir = File(context.filesDir, "imported")
         val profileDir = File(importedDir, profile.id)
@@ -76,6 +77,8 @@ fun ProfileCard(
         hasValidFile && hasDownloaded
     }
 
+=======
+>>>>>>> upstream/Yume
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -103,34 +106,21 @@ fun ProfileCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = profile.getDisplayProvider(),
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 2.dp),
-                        fontWeight = FontWeight(550),
-                        color = colorScheme.onSurfaceVariantSummary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (!isConfigSaved) {
-                        Text(
-                            text = MLang.Component.ProfileCard.Unsaved,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(top = 2.dp),
-                            fontWeight = FontWeight(550),
-                            color = colorScheme.error,
-                            maxLines = 1
-                        )
-                    }
-                }
+                Text(
+                    text = profile.getDisplayProvider(),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                    fontWeight = FontWeight(550),
+                    color = colorScheme.onSurfaceVariantSummary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
             Switch(
                 checked = profile.enabled,
-                enabled = isConfigSaved && !isDownloading,
-                onCheckedChange = { newValue -> onToggleEnabled(profile.copy(enabled = newValue)) }
-            )
+                enabled = !isDownloading,
+                onCheckedChange = { newValue -> onToggleEnabled(profile.copy(enabled = newValue)) })
         }
 
 
@@ -142,7 +132,7 @@ fun ProfileCard(
 
             val lines = infoText.split('\n')
 
-            lines.forEachIndexed { index, line ->
+            lines.forEachIndexed { _, line ->
                 when {
 
                     line.contains('|') -> {
@@ -210,13 +200,14 @@ fun ProfileCard(
                     minHeight = 35.dp,
                     minWidth = 35.dp,
                     enabled = isConfigSaved && !isDownloading,
-                    onClick = { if (isConfigSaved && !isDownloading) onExport(profile) }
-                ) {
+                    onClick = { if (isConfigSaved && !isDownloading) onExport(profile) }) {
                     Icon(
-                        modifier = Modifier.size(20.dp).alpha(if (isConfigSaved) 1f else 0.4f),
+                        modifier = Modifier
+                            .size(20.dp)
+                            .alpha(if (isConfigSaved) 1f else 0.4f),
                         imageVector = MiuixIcons.Useful.Share,
                         tint = actionIconTint.copy(alpha = if (isConfigSaved) 1f else 0.4f),
-                        contentDescription = MLang.Component.ProfileCard.Export
+                        contentDescription = "导出"
                     )
                 }
 
@@ -226,13 +217,12 @@ fun ProfileCard(
                     minHeight = 35.dp,
                     minWidth = 35.dp,
                     enabled = !isDownloading,
-                    onClick = { if (!isDownloading) onEdit(profile) }
-                ) {
+                    onClick = { if (!isDownloading) onEdit(profile) }) {
                     Icon(
                         modifier = Modifier.size(20.dp),
                         imageVector = MiuixIcons.Useful.Edit,
                         tint = actionIconTint,
-                        contentDescription = MLang.Component.ProfileCard.Edit
+                        contentDescription = "编辑"
                     )
                 }
             }
@@ -260,11 +250,11 @@ fun ProfileCard(
                             modifier = Modifier.size(20.dp),
                             imageVector = MiuixIcons.Useful.Refresh,
                             tint = updateTint,
-                            contentDescription = MLang.Component.ProfileCard.Update,
+                            contentDescription = "更新",
                         )
                         Text(
                             modifier = Modifier.padding(end = 3.dp),
-                            text = MLang.Component.ProfileCard.Update,
+                            text = "更新",
                             color = updateTint,
                             fontWeight = FontWeight.Medium,
                             fontSize = 15.sp
@@ -289,11 +279,11 @@ fun ProfileCard(
                         modifier = Modifier.size(20.dp),
                         imageVector = MiuixIcons.Useful.Delete,
                         tint = actionIconTint,
-                        contentDescription = MLang.Component.ProfileCard.Delete
+                        contentDescription = "删除"
                     )
                     Text(
                         modifier = Modifier.padding(start = 4.dp, end = 3.dp),
-                        text = MLang.Component.ProfileCard.Delete,
+                        text = "删除",
                         color = actionIconTint,
                         fontWeight = FontWeight.Medium,
                         fontSize = 15.sp
@@ -303,4 +293,3 @@ fun ProfileCard(
         }
     }
 }
-

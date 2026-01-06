@@ -25,6 +25,15 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.yumelira.yumebox.common.native.NativeLibraryManager
+import com.github.yumelira.yumebox.common.util.DeviceUtil
+import com.github.yumelira.yumebox.common.util.DownloadProgress
+import com.github.yumelira.yumebox.common.util.DownloadUtil
+import com.github.yumelira.yumebox.data.model.AutoCloseMode
+import com.github.yumelira.yumebox.data.store.FeatureStore
+import com.github.yumelira.yumebox.data.store.Preference
+import com.github.yumelira.yumebox.substore.SubStorePaths
+import com.github.yumelira.yumebox.substore.SubStoreService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +43,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+<<<<<<< HEAD
 import com.github.yumelira.yumebox.data.store.Preference
 import com.github.yumelira.yumebox.data.store.FeatureStore
 import com.github.yumelira.yumebox.data.model.AutoCloseMode
@@ -45,10 +55,12 @@ import com.github.yumelira.yumebox.common.util.DeviceUtil
 import com.github.yumelira.yumebox.common.util.DownloadProgress
 import com.github.yumelira.yumebox.common.util.DownloadUtil
 import timber.log.Timber
+=======
+>>>>>>> upstream/Yume
 import java.io.File
 
 class FeatureViewModel(
-    private val featureStore: FeatureStore,
+    featureStore: FeatureStore,
     private val application: Application,
 ) : ViewModel() {
 
@@ -57,7 +69,6 @@ class FeatureViewModel(
     val backendPort: Preference<Int> = featureStore.backendPort
     val frontendPort: Preference<Int> = featureStore.frontendPort
     val selectedPanelType: Preference<Int> = featureStore.selectedPanelType
-    val showWebControlInProxy: Preference<Boolean> = featureStore.showWebControlInProxy
 
     val autoCloseModeState: StateFlow<AutoCloseMode> =
         featureStore.autoCloseMode.state.map { ordinal ->
@@ -74,13 +85,9 @@ class FeatureViewModel(
     private var autoCloseJob: Job? = null
 
     private val _panelPaths = MutableStateFlow<List<String>>(emptyList())
-    val panelPaths: StateFlow<List<String>> = _panelPaths.asStateFlow()
 
-    private val _panelInstallStatus = MutableStateFlow<List<Boolean>>(listOf(false, false))
+    private val _panelInstallStatus = MutableStateFlow(listOf(false, false))
     val panelInstallStatus: StateFlow<List<Boolean>> = _panelInstallStatus.asStateFlow()
-
-    private val _isDownloadingApp = MutableStateFlow(false)
-    val isDownloadingApp: StateFlow<Boolean> = _isDownloadingApp.asStateFlow()
 
     private val _isDownloadingPanel = MutableStateFlow(false)
     val isDownloadingPanel: StateFlow<Boolean> = _isDownloadingPanel.asStateFlow()
@@ -92,16 +99,9 @@ class FeatureViewModel(
     val isDownloadingSubStoreBackend: StateFlow<Boolean> = _isDownloadingSubStoreBackend.asStateFlow()
 
     private val _subStoreFrontendDownloadProgress = MutableStateFlow<DownloadProgress?>(null)
-    val subStoreFrontendDownloadProgress: StateFlow<DownloadProgress?> = _subStoreFrontendDownloadProgress.asStateFlow()
 
     private val _subStoreBackendDownloadProgress = MutableStateFlow<DownloadProgress?>(null)
-    val subStoreBackendDownloadProgress: StateFlow<DownloadProgress?> = _subStoreBackendDownloadProgress.asStateFlow()
 
-    private val _isDownloadingTool = MutableStateFlow(false)
-    val isDownloadingTool: StateFlow<Boolean> = _isDownloadingTool.asStateFlow()
-
-    private val _toolDownloadProgress = MutableStateFlow<DownloadProgress?>(null)
-    val toolDownloadProgress: StateFlow<DownloadProgress?> = _toolDownloadProgress.asStateFlow()
 
     private val _isSubStoreInitialized = MutableStateFlow(false)
     val isSubStoreInitialized: StateFlow<Boolean> = _isSubStoreInitialized.asStateFlow()
@@ -148,9 +148,18 @@ class FeatureViewModel(
 
     private fun checkSubStoreReadiness(): Boolean {
         return when {
-            !_isExtensionInstalled.value -> { showToast("请先安装扩展包"); false }
-            !_isSubStoreInitialized.value -> { showToast("请先下载 SubStore 资源"); false }
-            !_isJavetLoaded.value -> { showToast("Javet 库未就绪，请确保扩展包已正确安装"); false }
+            !_isExtensionInstalled.value -> {
+                showToast("请先安装扩展包"); false
+            }
+
+            !_isSubStoreInitialized.value -> {
+                showToast("请先下载 SubStore 资源"); false
+            }
+
+            !_isJavetLoaded.value -> {
+                showToast("Javet 库未就绪，请确保扩展包已正确安装"); false
+            }
+
             else -> true
         }
     }
@@ -164,10 +173,7 @@ class FeatureViewModel(
         }
     }
 
-    fun toggleService() = if (isServiceRunning) stopService() else startService()
     fun setAllowLanAccess(allow: Boolean) = allowLanAccess.set(allow)
-    fun setBackendPort(port: Int) = backendPort.set(port)
-    fun setFrontendPort(port: Int) = frontendPort.set(port)
     fun setAutoCloseMode(mode: AutoCloseMode) {
         featureStore.autoCloseMode.set(mode.ordinal)
         if (isServiceRunning) {
@@ -179,35 +185,6 @@ class FeatureViewModel(
             }
             setupAutoCloseTimer()
         }
-    }
-
-    fun downloadAndInstallApp() {
-        if (_isDownloadingApp.value) return
-        viewModelScope.launch {
-            _isDownloadingApp.value = true
-            _isDownloadingApp.value = false
-            showToast("此功能暂不可用")
-        }
-    }
-
-    fun downloadExternalPanel(panelType: Int = 0) {
-        if (_isDownloadingPanel.value) return
-        viewModelScope.launch {
-            _isDownloadingPanel.value = true
-            _isDownloadingPanel.value = false
-            showToast("此功能暂不可用")
-        }
-    }
-
-    fun resetDownloadStates() {
-        _isDownloadingApp.value = false
-        _isDownloadingPanel.value = false
-        _isDownloadingSubStoreFrontend.value = false
-        _isDownloadingSubStoreBackend.value = false
-        _isDownloadingTool.value = false
-        _subStoreFrontendDownloadProgress.value = null
-        _subStoreBackendDownloadProgress.value = null
-        _toolDownloadProgress.value = null
     }
 
     fun initializeSubStoreStatus() {
@@ -244,7 +221,9 @@ class FeatureViewModel(
     }.getOrDefault(false)
 
     private fun initializeJavetStatus() {
-        if (!_isExtensionInstalled.value) { _isJavetLoaded.value = false; return }
+        if (!_isExtensionInstalled.value) {
+            _isJavetLoaded.value = false; return
+        }
         NativeLibraryManager.initialize(application)
         _isJavetLoaded.value = if (!NativeLibraryManager.isLibraryAvailable(JAVET_LIB_NAME)) {
             NativeLibraryManager.extractAllLibraries()[JAVET_LIB_NAME] == true
@@ -273,7 +252,7 @@ class FeatureViewModel(
                 val entryFile = findPanelEntryFile(panelDir)
                 val isInstalled = panelDir.exists() && entryFile != null
                 installStatus.add(isInstalled)
-                if (isInstalled && entryFile != null) {
+                if (isInstalled) {
                     paths.add("${PANEL_DISPLAY_NAMES[index]}: ${entryFile.absolutePath.substring(filesDir.length)}")
                 }
             }
@@ -292,25 +271,6 @@ class FeatureViewModel(
     }
 
     fun initializePanelPaths() = updatePanelPaths()
-
-    fun getCurrentPanelUrl(): String {
-        val selectedPanel = PANEL_NAMES[selectedPanelType.value]
-        val host = if (allowLanAccess.value) "0.0.0.0" else "127.0.0.1"
-        val panelDir = File("${application.filesDir.absolutePath}/panel/$selectedPanel")
-        return if (panelDir.exists() && findPanelEntryFile(panelDir) != null) {
-            "http://$host:${frontendPort.value}"
-        } else "面板未安装"
-    }
-
-    fun isPanelInstalled(panelType: Int): Boolean =
-        _panelInstallStatus.value.getOrNull(panelType) ?: false
-
-    fun getPanelStatusText(panelType: Int): String {
-        val names = listOf("Zashboard", "SubStore 官方面板")
-        if (panelType !in names.indices) return "未知面板"
-        return "${names[panelType]} (${if (isPanelInstalled(panelType)) "已安装" else "未安装"})"
-    }
-
     fun downloadSubStoreFrontend() {
         if (_isDownloadingSubStoreFrontend.value) return
         viewModelScope.launch {
@@ -322,8 +282,7 @@ class FeatureViewModel(
                 val success = DownloadUtil.downloadAndExtract(
                     url = "https://github.com/sub-store-org/Sub-Store-Front-End/releases/latest/download/dist.zip",
                     targetDir = SubStorePaths.frontendDir,
-                    onProgress = { _subStoreFrontendDownloadProgress.value = it }
-                )
+                    onProgress = { _subStoreFrontendDownloadProgress.value = it })
                 showToast(if (success) "SubStore 前端下载完成" else "SubStore 前端下载失败")
                 if (success) _isSubStoreInitialized.value = SubStorePaths.isResourcesReady()
             }.onFailure { e -> Timber.e(e, "下载前端失败"); showToast("下载出错: ${e.message}") }
@@ -343,8 +302,7 @@ class FeatureViewModel(
                 val success = DownloadUtil.download(
                     url = "https://github.com/sub-store-org/Sub-Store/releases/latest/download/sub-store.bundle.js",
                     targetFile = SubStorePaths.backendBundle,
-                    onProgress = { _subStoreBackendDownloadProgress.value = it }
-                )
+                    onProgress = { _subStoreBackendDownloadProgress.value = it })
                 showToast(if (success) "SubStore 后端下载完成" else "SubStore 后端下载失败")
                 if (success) _isSubStoreInitialized.value = SubStorePaths.isResourcesReady()
             }.onFailure { e -> Timber.e(e, "下载后端失败"); showToast("下载出错: ${e.message}") }
@@ -361,6 +319,7 @@ class FeatureViewModel(
         }
     }
 
+<<<<<<< HEAD
     fun downloadTool(toolUrl: String, toolName: String) {
         if (_isDownloadingTool.value) return
         viewModelScope.launch {
@@ -380,6 +339,8 @@ class FeatureViewModel(
         }
     }
 
+=======
+>>>>>>> upstream/Yume
     fun downloadExternalPanelEnhanced(panelType: Int = 0) {
         if (_isDownloadingPanel.value) return
         viewModelScope.launch {
@@ -406,6 +367,7 @@ class FeatureViewModel(
         cancelAutoCloseTimer()
         val mode = autoCloseMode.value
         mode.minutes?.let { minutes ->
+<<<<<<< HEAD
             val startTime = featureStore.autoCloseStartTime.value
             val elapsed = if (startTime > 0) System.currentTimeMillis() - startTime else 0L
             val remainingMillis = minutes * 60 * 1000L - elapsed
@@ -416,6 +378,12 @@ class FeatureViewModel(
                     showToast(MLang.Feature.ServiceStatus.AutoClosed)
                     stopService()
                 }
+=======
+            autoCloseJob = viewModelScope.launch {
+                delay(minutes * 60 * 1000L)
+                showToast("服务已自动关闭")
+                stopService()
+>>>>>>> upstream/Yume
             }
         }
     }

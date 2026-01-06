@@ -20,10 +20,14 @@
 
 package com.github.yumelira.yumebox.data.store
 
+<<<<<<< HEAD
 import com.tencent.mmkv.MMKV
+=======
+>>>>>>> upstream/Yume
 import com.github.yumelira.yumebox.data.model.AccessControlMode
 import com.github.yumelira.yumebox.data.model.ProxyMode
 import com.github.yumelira.yumebox.data.model.TunStack
+import com.tencent.mmkv.MMKV
 
 class NetworkSettingsStorage(externalMmkv: MMKV) : MMKVPreference(externalMmkv = externalMmkv) {
 
@@ -35,10 +39,10 @@ class NetworkSettingsStorage(externalMmkv: MMKV) : MMKVPreference(externalMmkv =
     val dnsHijack by boolFlow(true)
     val allowBypass by boolFlow(true)
     val enableIPv6 by boolFlow(false)
-    val systemProxy by boolFlow(true )
+    val systemProxy by boolFlow(true)
 
 
     val tunStack by enumFlow(TunStack.System)
-    val accessControlMode by enumFlow(AccessControlMode.allow_all)
+    val accessControlMode by enumFlow(AccessControlMode.ALLOW_ALL)
     val accessControlPackages by stringSetFlow(emptySet())
 }

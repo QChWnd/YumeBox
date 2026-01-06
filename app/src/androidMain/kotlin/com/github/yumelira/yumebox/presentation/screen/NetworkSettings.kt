@@ -20,7 +20,10 @@
 
 package com.github.yumelira.yumebox.presentation.screen
 
+<<<<<<< HEAD
 import android.app.Activity
+=======
+>>>>>>> upstream/Yume
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,27 +35,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.github.yumelira.yumebox.common.util.VpnUtils
+import com.github.yumelira.yumebox.data.model.AccessControlMode
+import com.github.yumelira.yumebox.data.model.ProxyMode
+import com.github.yumelira.yumebox.data.model.TunStack
+import com.github.yumelira.yumebox.presentation.component.*
+import com.github.yumelira.yumebox.presentation.viewmodel.NetworkSettingsViewModel
+import com.github.yumelira.yumebox.service.NetworkServiceManager
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.generated.destinations.AccessControlScreenDestination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import dev.oom_wg.purejoy.mlang.MLang
 import org.koin.androidx.compose.koinViewModel
-import com.github.yumelira.yumebox.data.model.AccessControlMode
-import com.github.yumelira.yumebox.data.model.ProxyMode
-import com.github.yumelira.yumebox.data.model.TunStack
-import com.github.yumelira.yumebox.service.NetworkServiceManager
-import com.github.yumelira.yumebox.presentation.component.Card
-import com.github.yumelira.yumebox.presentation.component.EnumSelector
-import com.github.yumelira.yumebox.presentation.component.ScreenLazyColumn
-import com.github.yumelira.yumebox.presentation.component.SmallTitle
-import com.github.yumelira.yumebox.presentation.component.TopBar
-import com.github.yumelira.yumebox.presentation.viewmodel.NetworkSettingsViewModel
-import com.github.yumelira.yumebox.common.util.VpnUtils
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.extra.SuperArrow
 import top.yukonga.miuix.kmp.extra.SuperSwitch
-import dev.oom_wg.purejoy.mlang.MLang
 
 @Composable
 @Destination<RootGraph>
@@ -102,7 +101,10 @@ fun NetworkSettingsScreen(
                         title = MLang.NetworkSettings.VpnService.RouteTrafficTitle,
                         summary = MLang.NetworkSettings.VpnService.RouteTrafficSummary,
                         currentValue = proxyMode,
-                        items = listOf(MLang.NetworkSettings.VpnService.VpnMode, MLang.NetworkSettings.VpnService.SystemProxy),
+                        items = listOf(
+                            MLang.NetworkSettings.VpnService.VpnMode,
+                            MLang.NetworkSettings.VpnService.SystemProxy
+                        ),
                         values = ProxyMode.entries,
                         onValueChange = { mode ->
                             if (mode == ProxyMode.Tun && !VpnUtils.checkVpnPermission(context)) {
@@ -167,7 +169,11 @@ fun NetworkSettingsScreen(
                     EnumSelector(
                         title = MLang.NetworkSettings.ProxyOptions.AccessControlModeTitle,
                         currentValue = accessControlMode,
-                        items = listOf(MLang.NetworkSettings.ProxyOptions.AllowAll, MLang.NetworkSettings.ProxyOptions.AllowSelected, MLang.NetworkSettings.ProxyOptions.RejectSelected),
+                        items = listOf(
+                            MLang.NetworkSettings.ProxyOptions.AllowAll,
+                            MLang.NetworkSettings.ProxyOptions.AllowSelected,
+                            MLang.NetworkSettings.ProxyOptions.RejectSelected
+                        ),
                         values = AccessControlMode.entries,
                         onValueChange = { viewModel.onAccessControlModeChange(it) },
                     )
